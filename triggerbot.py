@@ -10,32 +10,23 @@ tokenf = "token.txt"
 separator = '/'
 
 #Check if Triggers file exists.
-if(exists(tfile)):
+if exists(tfile):
     with open(tfile) as f:
-        #If exists, but is empty, don't load.
-        if(f.readline() == ''):
-            print("Triggers File is Empty.")
-            f.close
-        else:
-            f = open(tfile)
-            triggers = json.load(f)
+        triggers = json.load(f)
 else:
     print("Triggers file not found, creating.")
-    f = open(tfile, 'w')
-    f.close()
+    with open(tfile,'w') as f:
+        json.dump({}, f)
 
 #Check if Token file exists, if not, create.
-if(exists(tokenf)):
-    with open(tokenf) as g:
-        token = g.readline()
-        #Here we cut the last char in token because is a newline char.
-        token = token[:len(token) -1]
-        print("Token = [" + token + "]")
+if exists(tokenf):
+    with open(tokenf) as f:
+        token = f.readline().rstrip('\n')
+    print("Token = [" + token + "]")
 else:
     print("Token File not found, creating.")
-    g = open(tokenf, 'w')
-    g.write("YOUR TOKEN HERE")
-    f.close()
+    with open(tokenf,'w') as f:
+        f.write('Replace this string with your bot token')
 
 #Delete whitespaces at start & end
 def trim(s):
@@ -51,8 +42,7 @@ def trim(s):
 
 #Function to add new Trigger - Response
 def newTrigger(trigger, response):
-    trigger = trim(trigger)
-    triggers[trigger.lower()] = trim(response)
+    triggers[trigger.lower()] = response
     with open(tfile, "w") as f:
         json.dump(triggers, f)
     print("triggers file saved")
@@ -71,7 +61,9 @@ def add(m):
         print("I value = " + str(i))
         tr = text[:i]
         re = text[i+1:]
-        print("TR = " + tr + " - RE = " + re)
+        tr = trim(tr)
+        re = trim(re)
+        print("TR = [" + tr + "] - RE = [" + re + "]")
         newTrigger(tr,re)
         bot.send_message(cid, "Trigger Added: Trigger["+tr+"] - Response["+re+"]")
     except:
@@ -82,17 +74,17 @@ def add(m):
 @bot.message_handler(commands=['start'])
 def start(m):
     cid = m.chat.id
-    try:
-        i = m.text.rindex(' ')
-        bot.send_message(cid, "You have started me with the argument " + m.text[i+1:])
-    except:
+    if len(m.text.split()) != 1:
+        bot.send_message(cid, "You have started me with the argument " + ' '.join(m.text.split()[1:]))
+    else:
         bot.send_message(cid, "You have started me with no arguments.")
 
 #Answers with the size of triggers.
 @bot.message_handler(commands=['size'])
 def size(m):
     cid = m.chat.id
-    bot.send_message(cid, "Size of Triggers list = " + str(len(triggers)))
+    bot.send_message(cid, "Size of Triggers list = " + 
+str(len(triggers)))
 
 
 
@@ -113,43 +105,38 @@ def about(m):
 @bot.message_handler(commands=['separator'])
 def separat(m):
     global separator
-    v = "#$=*-/|@~+^º"
-    h = "Usage: /separator <char>\nset separator character for <Trigger> <Response>, valid chars: "+v
     cid = m.chat.id
-    try:
-        m.text.rindex(' ')
-        sep = m.text[11:]
-        if(sep in v):
+    v = ['#','$','=','\\*','-','/','|','@','~','+','^','Â','º']
+    h = "Usage: /separator <char>\nset separator character for <Trigger> <Response>, valid chars: `" + ', '.join(v) + "`"
+    if len(m.text.split) != 2:
+        bot.send_message(cid, h, parse_mode="Markdown")
+    else:
+        sep = m.text.split()[1]
+        if sep not in v:
+            bot.send_message(cid, "Character [" + sep + "] not allowed.")
+        else:
             separator = sep
             bot.send_message(cid, "Separator character set to ["+separator+"]")
-        else:
-            bot.send_message(cid, "Character ["+sep+"] not allowed.")
-    except:
-        bot.send_message(cid, h + "\nCurrent separator char is ["+separator+"]")
-
 
 #Sends source file (THIS FILE)
 @bot.message_handler(commands=['source'])
 def source(m):
-    try:
-        src = open('triggerbot.py')
-        bot.send_document(m.chat.id, src)
-    except:
+    cid = m.chat.id
+    if exists('triggerbot.py'):
+        bot.send_document(cid, open('triggerbot.py','rb'))
+    else:
         bot.reply_to(m, "No source file found :x")
 
 @bot.message_handler(commands=['all'])
 def all(m):
-    build = ''
-    for t in triggers:
-        build = build + t +" - "
-    bot.reply_to(m, build)
+    bot.reply_to(m, ' - '.join(triggers))
 
 #Catch every message, for triggers :D
 @bot.message_handler(func=lambda m: True)
 def response(m):
     print("Checking for triggers in Message [" + m.text + "]")
     for t in triggers:
-        if(t in m.text):
+        if t in m.text:
             bot.reply_to(m, triggers[t])
 
 #Bot starts here.
