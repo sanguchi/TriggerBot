@@ -1,12 +1,15 @@
 import telebot
 import json
 from os.path import exists
+import sys
+from io import StringIO
+
 #TODO: check if trigger already exists.
 
 triggers = {}
 tfile = "triggers.json"
 tokenf = "token.txt"
-
+ignored = []
 separator = '/'
 
 #Check if Triggers file exists.
@@ -69,7 +72,30 @@ def add(m):
     except:
         bot.send_message(cid, "Bad Arguments.")
 
+@bot.message_handler(commands=['del'])
+def delete(m):
+    cid = m.chat.id
+    text = trim(m.text[4:])
+    d = False
+    for t in triggers:
+        if t == text:
+            d = True
+    if d:
+        triggers.pop(text)
+        bot.send_message(cid, "Trigger [" + text + "] deleted.")
+        with open(tfile, "w") as f:
+            json.dump(triggers, f)
+            print("triggers file saved")
+    else:
+        bot.send_message(cid, "Trigger [" + text + "] not found.")
 
+@bot.message_handler(commands=['ignore'])
+def ign(m):
+    i = m.text[8:]
+    print("id = [" + i + "]")
+    ignored.append(i)
+    bot.send_message(m.chat.id, "user " + i + " ignored.")
+    
 #Deep Linking handler
 @bot.message_handler(commands=['start'])
 def start(m):
@@ -106,9 +132,9 @@ def about(m):
 def separat(m):
     global separator
     cid = m.chat.id
-    v = ['#','$','=','\\*','-','/','|','@','~','+','^','Â','º']
+    v = ['#','$','=','-','/','|','@','~','+','^']
     h = "Usage: /separator <char>\nset separator character for <Trigger> <Response>, valid chars: `" + ', '.join(v) + "`"
-    if len(m.text.split) != 2:
+    if len(m.text.split()) != 2:
         bot.send_message(cid, h, parse_mode="Markdown")
     else:
         sep = m.text.split()[1]
@@ -122,22 +148,55 @@ def separat(m):
 @bot.message_handler(commands=['source'])
 def source(m):
     cid = m.chat.id
-    if exists('triggerbot.py'):
-        bot.send_document(cid, open('triggerbot.py','rb'))
+    if exists(__file__):
+        bot.send_document(cid, open(__file__,'rb'))
     else:
         bot.reply_to(m, "No source file found :x")
 
 @bot.message_handler(commands=['all'])
 def all(m):
-    bot.reply_to(m, ' - '.join(triggers))
+    bot.reply_to(m,'[' + '] - ['.join(triggers) + ']')
 
+@bot.message_handler(commands=['exec'])
+def ex(m):
+    if(m.from_user.id != 59802458):
+        bot.reply_to(m, "Lol nope, you aren't allowed to use this command.")
+        return
+    code = m.text[6:]
+    print("ejecutando [" + code + "]")
+    # create file-like string to capture output
+    codeOut = StringIO()
+    #print("codeOut listo")
+    codeErr = StringIO()
+    #print("codeErr listo")
+    # capture output and errors
+    
+    sys.stdout = codeOut
+    #print("sys.stdout listo")
+    sys.stderr = codeErr
+    #print("sys.stderr listo")
+    try:
+        exec(code)
+        bot.reply_to(m, "stdout =\n" + str(codeOut.getvalue()) + "stderr =\n" + str(codeErr.getvalue()))
+    except:
+        bot.reply_to(m, "stdout =\n" + str(codeOut.getvalue()) + "stderr =\n" + str(codeErr.getvalue()))
+    #print("ejecutado")
+    # restore stdout and stderr
+    sys.stdout = sys.__stdout__
+    #print("stdout restaurado")
+    sys.stderr = sys.__stderr__
+    #print("stderr restaurado")
+    #bot.reply_to(m, "stdout =\n" + str(codeOut.getvalue()) + "stderr =\n" + str(codeErr.getvalue()))
+    
 #Catch every message, for triggers :D
 @bot.message_handler(func=lambda m: True)
 def response(m):
+    if(m.from_user.id in ignored):
+        return
     print("Checking for triggers in Message [" + m.text + "]")
     for t in triggers:
         if t in m.text:
             bot.reply_to(m, triggers[t])
-
+    pass
 #Bot starts here.
 bot.polling()
