@@ -14,6 +14,7 @@ tfile = "triggers.json"
 tokenf = "token.txt"
 ignored = []
 separator = '/'
+user = [line.rstrip('\n') for line in open('user.txt','rt')]
 
 def is_recent(m):
     return (time.time() - m.date) < 60
