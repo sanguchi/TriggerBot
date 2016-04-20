@@ -88,10 +88,13 @@ Created by @Sanguchi in ~60 minutes :P
 
 help_message = '''
 You need help!
-Usage: 
-/add <trigger> / <response>
+Add Triggers: There are two ways.
+1)/add <trigger> / <response>
 Example:
 /add hi / Hi! How're You?
+Also works via reply.
+[In Reply to Another Message]:
+2)/add <trigger>
 Delete Command:
 /del <trigger>
 Deletes a defined trigger, example:
