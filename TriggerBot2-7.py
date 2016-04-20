@@ -124,18 +124,30 @@ Response [{}]
 
 @bot.message_handler(commands=['add'])
 def add(m):
-    if(len(m.text.split()) < 2):
-        bot.reply_to(m, 'Bad Arguments')
-        return
-    if(m.text.find(separator, 1) == -1):
-        bot.reply_to(m, 'Separator not found')
-        return
-    rest_text = m.text.split(' ', 1)[1]
-    trigger_word = rest_text.split(separator)[0].strip()
+    if(m.reply_to_message):
+        if(m.reply_to_message.text):
+            if(len(m.reply_to_message.text.split()) < 2):
+                bot.reply_to(m, 'Bad Arguments')
+                return
+            trigger_word = m.text.split(' ', 1)[1].strip()
+            trigger_response = m.reply_to_message.text.strip()
+        else:
+            bot.reply_to(m, 'Only text triggers are supported.')
+            return
+    else:    
+        if(len(m.text.split()) < 2):
+            bot.reply_to(m, 'Bad Arguments')
+            return
+        if(m.text.find(separator, 1) == -1):
+            bot.reply_to(m, 'Separator not found')
+            return
+        rest_text = m.text.split(' ', 1)[1]
+        trigger_word = rest_text.split(separator)[0].strip()
+        trigger_response = rest_text.split(separator, 1)[1].strip()
+
     if(len(trigger_word) < 4):
         bot.reply_to(m, 'Trigger too short. [chars < 4]')
         return
-    trigger_response = rest_text.split(separator, 1)[1].strip()
     if(len(trigger_response) < 1):
         bot.reply_to(m, 'Invalid Response.')
         return
