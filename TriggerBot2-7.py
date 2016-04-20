@@ -233,7 +233,7 @@ def response(m):
         trg = get_triggers(m.chat.id)
         if(trg):
             for t in trg.keys():
-                if t.lower() in m.text:
+                if t.lower() in m.text.lower():
                     bot.reply_to(m, trg[t])
 
 #Bot starts here.
