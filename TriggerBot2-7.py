@@ -222,7 +222,7 @@ def solve(m):
     rw = ''
     ts = 'Trigger not Found.'
     if(m.text.split() > 1):
-        rw = m.text.split(' ', 1)
+        rw = m.text.split(' ', 1)[1]
     if(rp and rp.from_user.id == bot.get_me().id and rp.text):
         rw = rp.text
     if(m.chat.type in ['group', 'supergroup']):
