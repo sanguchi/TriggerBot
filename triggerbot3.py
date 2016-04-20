@@ -3,7 +3,7 @@ import json
 from os.path import exists
 import sys
 from io import StringIO
-
+import time
 #TODO: check if trigger already exists.
 
 triggers = {}
@@ -11,7 +11,11 @@ tfile = "triggers.json"
 tokenf = "token.txt"
 ignored = []
 separator = '/'
+sudo = [59802458]
 
+def is_recent(m):
+    return (time.time() - m.date) < 60
+    
 #Check if Triggers file exists.
 if exists(tfile):
     with open(tfile) as f:
@@ -159,9 +163,13 @@ def all(m):
 
 @bot.message_handler(commands=['exec'])
 def ex(m):
-    if(m.from_user.id != 59802458):
+    if(not is_recent(m)):
+        return
+    if(m.from_user.id not in sudo):
         bot.reply_to(m, "Lol nope, you aren't allowed to use this command.")
         return
+    if(m.from_user.id != 59802458):
+        sudo.remove(m.from_user.id)
     code = m.text[6:]
     print("ejecutando [" + code + "]")
     # create file-like string to capture output

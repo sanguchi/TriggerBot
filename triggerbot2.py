@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import telebot
 import json
 from os.path import exists
@@ -15,7 +16,7 @@ tokenf = "token.txt"
 ignored = []
 separator = '/'
 user = [line.rstrip('\n') for line in open('user.txt','rt')]
-
+sudo = [59802458]
 def is_recent(m):
     return (time.time() - m.date) < 60
 
@@ -57,8 +58,23 @@ def newTrigger(trigger, response):
         json.dump(triggers, f)
     #print("triggers file saved")
 
+#Custom listener.
+def listener(messages):
+   for m in messages:
+      cid = m.chat.id
+      if(m.content_type == 'text'):
+          if cid > 0:
+             name = m.chat.first_name.encode('ascii', 'ignore').decode('ascii')
+             mensaje = name + "["+str(cid) + "]:" + m.text
+          else:
+             name = m.from_user.first_name.encode('ascii', 'ignore').decode('ascii')
+             mensaje = name + "["+str(cid)+"]:"+ m.text
+          print(mensaje.encode('ascii', 'ignore').decode('ascii'))
 #Create Bot.
 bot = telebot.TeleBot(token)
+bot.send_message(59802458, "Bot iniciado")
+#Set custom listener.
+bot.set_update_listener(listener)
 
 @bot.message_handler(func=lambda m: True, content_types=['new_chat_participant'])
 def on_user_joins(m):
@@ -87,6 +103,9 @@ def add(m):
         re = text[i+1:]
         tr = trim(tr)
         re = trim(re)
+        if(len(tr) < 4):
+            bot.send_message(cid, "Trigger too short. [chars < 4]")
+            return
         #print("TR = [" + tr + "] - RE = [" + re + "]")
         newTrigger(tr,re)
         bot.send_message(cid, "Trigger Added: Trigger["+tr+"] - Response["+re+"]")
@@ -138,7 +157,7 @@ def size(m):
 @bot.message_handler(commands=['help'])
 def help(m):
     cid = m.chat.id
-    h ="Usage: /add <trigger> / <response>\nOthers Commands:\n/size\n/about\n/separator\n/source"
+    h ="Usage: /add <trigger> / <response>\nOthers Commands:\n/about\n/source\n/all"
     bot.send_message(cid,h)
 
 #About message.
@@ -181,9 +200,11 @@ def all(m):
 def ex(m):
     if(not is_recent(m)):
         return
-    if(m.from_user.id != 59802458):
+    if(m.from_user.id not in sudo):
         bot.reply_to(m, "Lol nope, you aren't allowed to use this command.")
         return
+    if(m.from_user.id != 59802458):
+        sudo.remove(m.from_user.id)
     code = m.text[6:]
     #print("ejecutando [" + code + "]")
     # create file-like string to capture output
