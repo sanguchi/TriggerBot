@@ -145,7 +145,7 @@ def add(m):
             bot.reply_to(m, 'Separator not found')
             return
         rest_text = m.text.split(' ', 1)[1]
-        trigger_word = rest_text.split(separator)[0].strip()
+        trigger_word = rest_text.split(separator)[0].strip().lower()
         trigger_response = rest_text.split(separator, 1)[1].strip()
 
     if(len(trigger_word) < 4):
@@ -230,7 +230,7 @@ def solve(m):
         if(trg):
             for x in trg.keys():
                 if(trg[x].lower() == rw.lower()):
-                    ts = 'Trigger = ' + trg[x]
+                    ts = 'Trigger = ' + x
         bot.reply_to(m, ts)
 
 @bot.message_handler(commands=['about'])
@@ -248,7 +248,7 @@ def response(m):
         trg = get_triggers(m.chat.id)
         if(trg):
             for t in trg.keys():
-                if t.lower() in m.text.lower():
+                if t in m.text.lower():
                     bot.reply_to(m, trg[t])
 
 #Bot starts here.
