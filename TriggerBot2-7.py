@@ -132,8 +132,8 @@ def add(m):
             if(len(m.reply_to_message.text.split()) < 2):
                 bot.reply_to(m, 'Bad Arguments')
                 return
-            trigger_word = m.text.split(' ', 1)[1].strip()
-            trigger_response = m.reply_to_message.text.strip()
+            trigger_word = u'' + m.text.split(' ', 1)[1].strip()
+            trigger_response = u'' + m.reply_to_message.text.strip()
         else:
             bot.reply_to(m, 'Only text triggers are supported.')
             return
@@ -145,8 +145,8 @@ def add(m):
             bot.reply_to(m, 'Separator not found')
             return
         rest_text = m.text.split(' ', 1)[1]
-        trigger_word = rest_text.split(separator)[0].strip().lower()
-        trigger_response = rest_text.split(separator, 1)[1].strip()
+        trigger_word = u'' + rest_text.split(separator)[0].strip().lower()
+        trigger_response = u'' + rest_text.split(separator, 1)[1].strip()
 
     if(len(trigger_word) < 4):
         bot.reply_to(m, 'Trigger too short. [chars < 4]')
