@@ -159,7 +159,7 @@ def add(m):
             get_triggers(m.chat.id)[trigger_word] = trigger_response
         else:
             triggers[str(m.chat.id)] = {trigger_word : trigger_response}
-        msg = added_message.format(trigger_word, trigger_response)
+        msg = u'' + added_message.format(trigger_word, trigger_response)
         bot.reply_to(m, msg)
         save_triggers()
     else:
