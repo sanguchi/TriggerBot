@@ -74,7 +74,9 @@ def is_recent(m):
     return (time.time() - m.date) < 60
     
 #Create Bot.
-bot = telebot.TeleBot(token) 
+bot = telebot.TeleBot(token)
+#Bot user ID.
+bot_id = bot.get_me().id 
 #Tell owner the bot has started.
 bot.send_message(owner, 'Bot Started')            
 #Set custom listener.
@@ -238,9 +240,9 @@ def solve(m):
     rp = m.reply_to_message
     rw = ''
     ts = 'Trigger not Found.'
-    if(m.text.split() > 1):
+    if(len(m.text.split()) >= 2):
         rw = m.text.split(' ', 1)[1]
-    if(rp and rp.from_user.id == bot.get_me().id and rp.text):
+    if(rp and rp.from_user.id == bot_id and rp.text):
         rw = rp.text
     if(m.chat.type in ['group', 'supergroup']):
         trg = get_triggers(m.chat.id)
