@@ -15,6 +15,9 @@ owner = 59802458
 triggers = {}
 #Separator character.
 separator = '/'
+#Check if a message is too old.
+def is_recent(m):
+    return (time.time() - m.date) < 60
 ##END OF GLOBAL VARIABLES SECTION.
 
 ##TRIGGERS SECTION
@@ -127,6 +130,8 @@ Response [{}]
 
 @bot.message_handler(commands=['add'])
 def add(m):
+    if(not is_recent(m)):
+        return
     if(m.reply_to_message):
         if(m.reply_to_message.text):
             if(len(m.reply_to_message.text.split()) < 2):
@@ -168,6 +173,8 @@ def add(m):
 
 @bot.message_handler(commands=['del'])
 def delete(m):
+    if(not is_recent(m)):
+        return
     if(len(m.text.split()) < 2):
         bot.reply_to(m, 'Bad Arguments')
         return
@@ -183,6 +190,8 @@ def delete(m):
 
 @bot.message_handler(commands=['size'])
 def size(m):
+    if(not is_recent(m)):
+        return
     if(m.chat.type in ['group', 'supergroup']):
         trg = get_triggers(m.chat.id)
         if(trg):
@@ -193,6 +202,8 @@ def size(m):
 
 @bot.message_handler(commands=['all'])
 def all(m):
+    if(not is_recent(m)):
+        return
     if(m.chat.type in ['group', 'supergroup']):
         trg = get_triggers(m.chat.id)
         if(trg):
@@ -207,10 +218,14 @@ def all(m):
 
 @bot.message_handler(commands=['help'])
 def help(m):
+    if(not is_recent(m)):
+        return
     bot.reply_to(m, help_message)
 
 @bot.message_handler(commands=['source'])
 def source(m):
+    if(not is_recent(m)):
+        return
     if exists(__file__):
         bot.send_document(m.chat.id, open(__file__,'rb'))
     else:
@@ -218,6 +233,8 @@ def source(m):
 
 @bot.message_handler(commands=['solve'])
 def solve(m):
+    if(not is_recent(m)):
+        return
     rp = m.reply_to_message
     rw = ''
     ts = 'Trigger not Found.'
@@ -234,7 +251,10 @@ def solve(m):
         bot.reply_to(m, ts)
 
 @bot.message_handler(commands=['about'])
+
 def about(m):
+    if(not is_recent(m)):
+        return
     bot.reply_to(m, about_message, parse_mode="Markdown")
 
 
@@ -244,6 +264,8 @@ def about(m):
 #Catch every message, for triggers.
 @bot.message_handler(func=lambda m: True)
 def response(m):
+    if(not is_recent(m)):
+        return
     if(m.chat.type in ['group', 'supergroup']):
         trg = get_triggers(m.chat.id)
         if(trg):
