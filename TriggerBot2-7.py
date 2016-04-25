@@ -33,7 +33,7 @@ else:
 #Function to save triggers list to a file.
 def save_triggers():
     with open('triggers.json', 'w') as f:
-        json.dump(triggers, f)
+        json.dump(triggers, f, indent=4)
     print('Triggers file saved.')
 #Function to get triggers list for a group.
 def get_triggers(group_id):
