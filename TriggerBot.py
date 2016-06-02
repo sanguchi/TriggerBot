@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import telebot, json, time
+import telebot, json
+from time import time
 from os.path import exists
 #comment to use default timeout. (3.5)
 telebot.apihelper.CONNECT_TIMEOUT = 9999
@@ -19,7 +20,7 @@ separator = '/'
 
 #Check if a message is too old.
 def is_recent(m):
-    return (time.time() - m.date) < 60
+    return (time() - m.date) < 60
     
 ##END OF GLOBAL VARIABLES SECTION.
 
@@ -36,7 +37,7 @@ else:
 #Function to save triggers list to a file.
 def save_triggers():
     with open('triggers.json', 'w') as f:
-        json.dump(triggers, f, indent=4)
+        json.dump(triggers, f, indent=2)
     print('Triggers file saved.')
     
 #Function to get triggers list for a group.
@@ -68,14 +69,12 @@ else:
 
 #Function to check if a message is too old(60 seconds) to answer.
 def is_recent(m):
-    return (time.time() - m.date) < 60
+    return (time() - m.date) < 60
     
 #Create Bot.
 bot = telebot.TeleBot(token)
 #Bot user ID.
-bot_id = bot.get_me().id 
-#Tell owner the bot has started.
-bot.send_message(owner, 'Bot Started')            
+bot_id = bot.get_me().id           
 
 #Define a custom Listener to print messages to console.
 
@@ -140,6 +139,18 @@ New Trigger Created:
 Trigger [{}]
 Response [{}]
 '''
+
+gadded_message = '''
+New Global Trigger Created:
+Trigger [{}]
+Response [{}]
+'''
+
+gdeleted_message = '''
+Trigger [{}] deleted from {} Groups.
+'''
+
+
 ##END OF GLOBAL MESSAGES SECTION.
 
 ##COMMAND IMPLEMENTATION SECTION.
@@ -153,7 +164,7 @@ def add(m):
             if(len(m.reply_to_message.text.split()) < 2):
                 bot.reply_to(m, 'Bad Arguments')
                 return
-            trigger_word = u'' + m.text.split(' ', 1)[1].strip()
+            trigger_word = u'' + m.text.split(' ', 1)[1].strip().lower()
             trigger_response = u'' + m.reply_to_message.text.strip()
         else:
             bot.reply_to(m, 'Only text triggers are supported.')
@@ -267,7 +278,6 @@ def solve(m):
         bot.reply_to(m, ts)
 
 @bot.message_handler(commands=['about'])
-
 def about(m):
     if(not is_recent(m)):
         return
@@ -275,6 +285,7 @@ def about(m):
 
 
 ##END OF COMMAND IMPLEMENTATION SECTION.
+
 ##ADMIN COMMANDS
 @bot.message_handler(commands=['broadcast'])
 def bcast(m):
@@ -293,8 +304,74 @@ def bcast(m):
     bot.send_message(m.chat.id, 
     'Broadcast sent to {} groups of {}'.format(
     count, len(triggers.keys())))
-        
-##TRIGGER PROCESS SECTION.
+
+@bot.message_handler(commands=['triggers'])
+def send_triggers(m):
+    if(m.from_user.id == owner):
+        bot.send_document(owner, open('triggers.json'))
+
+@bot.message_handler(commands=['gadd'])
+def add_global_trigger(m):
+    if(m.from_user.id == owner):
+        if(len(m.text.split()) == 1):
+            bot.reply_to(m, 'Usage:\n/gadd <trigger> / <response>\n[In reply]:\n/gadd <trigger>')
+            return
+        if(m.reply_to_message):
+            if(m.reply_to_message.text):
+                trigger_response = m.reply_to_message.text
+                trigger_word = m.text
+        else:
+            if(m.text.find(separator, 1) == -1):
+                bot.reply_to(m, 'Separator not found')
+                return
+            rest_text = m.text.split(' ', 1)[1]
+            trigger_word = u'' + rest_text.split(separator)[0].strip().lower()
+            trigger_response = u'' + rest_text.split(separator, 1)[1].strip()
+            if(len(trigger_word) < 4):
+                bot.reply_to(m, 'Trigger too short. [chars < 4]')
+                return
+            if(len(trigger_response) < 1):
+                bot.reply_to(m, 'Invalid Response.')
+                return
+        for g in triggers.keys():
+            triggers[g][trigger_word] = trigger_response
+        bot.reply_to(m, gadded_message.format(trigger_word, trigger_response))
+        save_triggers()
+
+@bot.message_handler(commands=['gdel'])
+def global_delete(m):
+    if(m.from_user.id == owner):
+        if(len(m.text.split()) == 1):
+            bot.reply_to(m, 'Usage: /gdel <trigger>')
+        else:
+            trigger_word = m.text.split(' ', 1)[1]
+            count = 0
+            for g in triggers.keys():
+                if(trigger_word in triggers[g]):
+                    triggers[g].pop(trigger_word)
+                    count += 1
+            bot.reply_to(m, gdeleted_message.format(trigger_word, count))
+            save_triggers()
+
+@bot.message_handler(commands=['gsearch'])
+def global_search(m):
+    if(m.from_user.id == owner):
+        if(len(m.text.split()) == 1):
+            bot.reply_to(m, 'Usage: /gsearch <trigger>')
+        else:
+            trigger_word = m.text.split(' ', 1)[1]
+            results = []
+            for g in triggers.keys():
+                #print('g > %s = %s' % (g.__class__.__name__, g))
+                if(trigger_word in triggers[g].keys()):
+                    results.append('[%s]:\n%s' % (g, triggers[g][trigger_word]))
+            if(len(results) == 0):
+                result_text = 'Trigger not found'
+            else:
+                result_text = 'Trigger found in these groups:\n%s' % '\n-----\n'.join(results)
+            bot.reply_to(m, result_text)
+
+##TRIGGER PROCESSING SECTION.
 #Catch every message, for triggers.
 @bot.message_handler(func=lambda m: True)
 def response(m):
@@ -307,6 +384,31 @@ def response(m):
                 if t in m.text.lower():
                     bot.reply_to(m, trg[t])
 
+
+#This makes the bot unstoppable :^)
+def safepolling(bot):
+    now = int(time())
+    while(1):
+        try:
+            print('Bot went offline for {} seconds.'.format(int(time()) - now))
+            bot.polling()
+        except Exception as e:
+            bot.stop_polling()
+            now = int(time())
+            error_text = 'Something went wrong:\n%s' % str(e) if len(str(e)) < 3600 else str(e)[:3600]
+            while(1):
+                try:
+                    offline = int(time()) - now
+                    bot.send_message(owner, error_text + '\nBot went offline for %s seconds' % offline)
+                    break
+                except:
+                    pass
+
 #Bot starts here.
-print('Bot Started')
-bot.polling(True)
+print('Bot started.')
+print('Bot username:[%s]' % bot.get_me().username)
+#Tell owner the bot has started.
+bot.send_message(owner, 'Bot Started')  
+print('Safepolling Start.')
+safepolling(bot)
+#Nothing beyond this line will be executed.

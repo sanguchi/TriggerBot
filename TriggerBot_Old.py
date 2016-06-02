@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import telebot, json, time
+import telebot, json
+from time import time
 from os.path import exists
 
 #comment to use default timeout. (3.5)
@@ -13,10 +14,10 @@ tokenf = "token.txt"
 ignored = []
 separator = '/'
 
-admin = 59802458
+admins = [59802458]
 
 def is_recent(m):
-    return (time.time() - m.date) < 60
+    return (time() - m.date) < 60
 
 #Check if Triggers file exists.
 if exists(tfile):
@@ -146,6 +147,11 @@ def source(m):
 def all(m):
     bot.reply_to(m,'Triggers:\n%s' % '\n'.join(triggers.keys()))
 
+@bot.message_handler(commands=['triggers'])
+def send_triggers(m):
+    if(m.from_user.id in admins):
+        bot.send_document(m.from_user.id, open(tfile), m.message_id, None, None)
+        
 #Catch every message, for triggers :D
 @bot.message_handler(func=lambda m: True)
 def response(m):
@@ -154,7 +160,30 @@ def response(m):
         if t in m.text:
             bot.reply_to(m, triggers[t])
 
-bot.send_message(admin, "Bot iniciado")
-print('Bot started')
+#This makes the bot unstoppable :^)
+def safepolling(bot):
+    now = int(time())
+    while(1):
+        try:
+            print('Bot went offline for {} seconds.'.format(int(time()) - now))
+            bot.polling()
+        except Exception as e:
+            bot.stop_polling()
+            now = int(time())
+            error_text = 'Something went wrong:\n%s' % str(e) if len(str(e)) < 3600 else str(e)[:3600]
+            for x in admins:
+                while(1):
+                    try:
+                        offline = int(time()) - now
+                        bot.send_message(x, error_text + '\nBot went offline for %s seconds' % offline)
+                        break
+                    except:
+                        pass
+
 #Bot starts here.
-bot.polling(True)
+print('Bot started.')
+print('Bot username:[%s]' % bot.get_me().username)
+[bot.send_message(x, "Bot started") for x in admins]
+print('Safepolling Start.')
+safepolling(bot)
+#Nothing beyond this line will be executed.
