@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import telebot, json
-from time import time
+from time import time, asctime, sleep
 from os.path import exists
+from telebot.apihelper import ApiException
 #comment to use default timeout. (3.5)
-telebot.apihelper.CONNECT_TIMEOUT = 9999
+#telebot.apihelper.CONNECT_TIMEOUT = 9999
 #Git Repo:
 #https://github.com/sanguchi/TriggerBot
 
@@ -74,8 +75,8 @@ def is_recent(m):
 #Create Bot.
 bot = telebot.TeleBot(token)
 #Bot user ID.
-bot_id = bot.get_me().id           
-
+bot_id = int(token.split(':')[0])
+print('Bot ID [%s]' % bot_id)
 #Define a custom Listener to print messages to console.
 
 #Python2 version
@@ -185,6 +186,9 @@ def add(m):
         return
     if(len(trigger_response) < 1):
         bot.reply_to(m, 'Invalid Response.')
+        return
+    if(len(trigger_response) > 4700):
+        bot.reply_to(m, 'Response too long. [chars > 4700]')
         return
     if(m.chat.type in ['group', 'supergroup']):
         if(get_triggers(m.chat.id)):
@@ -364,7 +368,8 @@ def global_search(m):
             for g in triggers.keys():
                 #print('g > %s = %s' % (g.__class__.__name__, g))
                 if(trigger_word in triggers[g].keys()):
-                    results.append('[%s]:\n%s' % (g, triggers[g][trigger_word]))
+                    txt = triggers[g][trigger_word]
+                    results.append('[%s]:\n%s' % (g, txt if len(txt) < 30 else txt[:27] + '...'))
             if(len(results) == 0):
                 result_text = 'Trigger not found'
             else:
@@ -386,23 +391,34 @@ def response(m):
 
 
 #This makes the bot unstoppable :^)
+#Notice this is single-threaded.
 def safepolling(bot):
-    now = int(time())
+    if(bot.skip_pending):
+        lid = bot.get_updates()[-1].update_id
+    else:
+        lid = 0
     while(1):
         try:
-            print('Bot went offline for {} seconds.'.format(int(time()) - now))
-            bot.polling()
+            updates = bot.get_updates(lid + 1, 50)
+            #print('len updates = %s' % len(updates))
+            if(len(updates) > 0):
+                lid = updates[-1].update_id
+                bot.process_new_updates(updates)
+        except ApiException as a:
+            raise a
         except Exception as e:
-            bot.stop_polling()
+            print('Exception at %s \n%s' % (asctime(), e))
             now = int(time())
-            error_text = 'Something went wrong:\n%s' % str(e) if len(str(e)) < 3600 else str(e)[:3600]
             while(1):
+                error_text = 'Exception at %s:\n%s' % (asctime(), str(e) if len(str(e)) < 3600 else str(e)[:3600])
                 try:
+                    #print('Trying to send message to owner.')
                     offline = int(time()) - now
                     bot.send_message(owner, error_text + '\nBot went offline for %s seconds' % offline)
+                    #print('Message sent, returning to polling.')
                     break
                 except:
-                    pass
+                    sleep(0.25)
 
 #Bot starts here.
 print('Bot started.')
