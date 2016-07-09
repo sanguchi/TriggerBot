@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#TRIGGERBOT 0.6.2
 import telebot, json
 from time import time, asctime, sleep
 from os.path import exists
@@ -100,39 +101,53 @@ bot.set_update_listener(logging_to_console)
 
 ##GLOBAL MESSAGES SECTION.
 about_message = '''
+TriggerBot *0.6.2*
 Created by @Sanguchi in ~60 minutes :P
 [Source Code on Github](https://github.com/sanguchi/TriggerBot/)
 [Give me 5 Stars](https://telegram.me/storebot?start=TriggerResponseBot)
 '''
-
+  
 help_message = '''
 You need help!
-Add Triggers: There are two ways.
-1)/add <trigger> / <response>
+*Commands:*
+`/add <trigger> / <response>`
+ |-_Adds a new trigger._
+`/del <trigger>`
+ |-_deletes trigger if exists._
+*More:*
+/about - /size - /all - /lock - /source
+*For a detailed help send /help in private.*
+'''
+
+full_help = '''
+You really need help!
+*Main Functions:*
+*Add Triggers:* There are two ways.
+1)`/add <trigger> / <response>`
 Example:
-/add hi / Hi! How're You?
+*/add Hello / Hello there!*
 Also works via reply.
-[In Reply to Another Message]:
-2)/add <trigger>
-Delete Command:
-/del <trigger>
+_In Reply to Another Message:_
+2)`/add <trigger>`
+*Delete Triggers:*
+`/del <trigger>`
 Deletes a defined trigger, example:
-/del hi
-Others Commands:
+`/del hello`
+*Misc:*
 /size
-Returns size of triggers list.
+_Returns size of triggers list._
 /all
-Show you all triggers.
+_List all triggers._
 /help
-This message.
+_This message._
 /source
-Returns source code.
+_Sends source code TriggerBot.py_
 /solve <response>
-Tries to resolve what trigger causes the given response, if exists.
-Also works by reply:
-Reply to any bot response with the command to get the trigger.
+_Resolve what trigger causes the given response, if exists._
+*Also works by reply:*
+_Reply to any bot response with the command to get the trigger._
 /about
-About this bot.
+_About this bot._
 '''
  
 added_message = '''
@@ -249,9 +264,13 @@ def all(m):
 
 @bot.message_handler(commands=['help'])
 def help(m):
-    if(not is_recent(m)):
-        return
-    bot.reply_to(m, help_message)
+    print('help triggered')
+    if(m.chat.id == m.from_user.id):
+        print('private help')
+        bot.send_message(m.chat.id, full_help, True, parse_mode="Markdown")
+    else:
+        print('group help')
+        bot.send_message(m.chat.id, help_message, True, parse_mode="Markdown")
 
 @bot.message_handler(commands=['source'])
 def source(m):
@@ -405,7 +424,7 @@ def safepolling(bot):
                 lid = updates[-1].update_id
                 bot.process_new_updates(updates)
         except ApiException as a:
-            raise a
+            print(a)
         except Exception as e:
             print('Exception at %s \n%s' % (asctime(), e))
             now = int(time())
