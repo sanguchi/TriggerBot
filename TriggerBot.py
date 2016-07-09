@@ -264,12 +264,9 @@ def all(m):
 
 @bot.message_handler(commands=['help'])
 def help(m):
-    print('help triggered')
     if(m.chat.id == m.from_user.id):
-        print('private help')
         bot.send_message(m.chat.id, full_help, True, parse_mode="Markdown")
     else:
-        print('group help')
         bot.send_message(m.chat.id, help_message, True, parse_mode="Markdown")
 
 @bot.message_handler(commands=['source'])
