@@ -95,7 +95,7 @@ def listener(messages):
 logging_to_console = lambda m: print('\n'.join(['%s[%s]:%s' %(x.from_user.first_name, x.chat.id, x.text if x.text else x.content_type) for x in m]))
 
 #Change to listener if this complains about encoding.
-bot.set_update_listener(logging_to_console)
+bot.set_update_listener(listener)
 
 ##END OF BOT INITIALIZATION SECTION.
 
@@ -115,7 +115,7 @@ You need help!
 `/del <trigger>`
  |-_deletes trigger if exists._
 *More:*
-/about - /size - /all - /lock - /source
+/about - /size - /all - /source
 *For a detailed help send /help in private.*
 '''
 
