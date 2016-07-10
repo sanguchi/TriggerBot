@@ -97,7 +97,7 @@ bot.set_update_listener(listener)
 
 ##GLOBAL MESSAGES SECTION.
 about_message = '''
-TriggerBot *0.6.2*
+TriggerBot *0.7*
 Created by @Sanguchi in ~60 minutes :P
 [Source Code on Github](https://github.com/sanguchi/TriggerBot/)
 [Give me 5 Stars](https://telegram.me/storebot?start=TriggerResponseBot)
