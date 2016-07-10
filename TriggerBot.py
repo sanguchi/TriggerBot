@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#TRIGGERBOT 0.6.2
+#TRIGGERBOT 0.7
 import telebot, json
 from time import time, asctime, sleep
 from os.path import exists
@@ -68,10 +68,6 @@ else:
     with open('token.txt', 'w') as f:
         f.write(token)  
     print('Token File saved.')
-
-#Function to check if a message is too old(60 seconds) to answer.
-def is_recent(m):
-    return (time() - m.date) < 60
     
 #Create Bot.
 bot = telebot.TeleBot(token)
@@ -173,8 +169,6 @@ Trigger [{}] deleted from {} Groups.
 
 @bot.message_handler(commands=['add'])
 def add(m):
-    if(not is_recent(m)):
-        return
     if(m.reply_to_message):
         if(m.reply_to_message.text):
             if(len(m.reply_to_message.text.split()) < 2):
@@ -202,8 +196,8 @@ def add(m):
     if(len(trigger_response) < 1):
         bot.reply_to(m, 'Invalid Response.')
         return
-    if(len(trigger_response) > 4700):
-        bot.reply_to(m, 'Response too long. [chars > 4700]')
+    if(len(trigger_response) > 3000):
+        bot.reply_to(m, 'Response too long. [chars > 3000]')
         return
     if(m.chat.type in ['group', 'supergroup']):
         if(get_triggers(m.chat.id)):
@@ -219,8 +213,15 @@ def add(m):
 
 @bot.message_handler(commands=['del'])
 def delete(m):
-    if(not is_recent(m)):
-        return
+    #check if this is a bot message replied with /del.
+    if(len(m.text.split()) == 1 and m.reply_to_message and m.reply_to_message.text):
+        trg = get_triggers(m.chat.id)
+        if(trg):
+            for x in trg.keys():
+                if(trg[x].lower() == m.reply_to_message.text.lower()):
+                    trg.pop(x)
+                    bot.reply_to(m, 'Trigger [%s] deleted.' % x)
+                    return
     if(len(m.text.split()) < 2):
         bot.reply_to(m, 'Bad Arguments')
         return
@@ -236,8 +237,6 @@ def delete(m):
 
 @bot.message_handler(commands=['size'])
 def size(m):
-    if(not is_recent(m)):
-        return
     if(m.chat.type in ['group', 'supergroup']):
         trg = get_triggers(m.chat.id)
         if(trg):
@@ -248,8 +247,6 @@ def size(m):
 
 @bot.message_handler(commands=['all'])
 def all(m):
-    if(not is_recent(m)):
-        return
     if(m.chat.type in ['group', 'supergroup']):
         trg = get_triggers(m.chat.id)
         if(trg):
@@ -271,8 +268,6 @@ def help(m):
 
 @bot.message_handler(commands=['source'])
 def source(m):
-    if(not is_recent(m)):
-        return
     if exists(__file__):
         bot.send_document(m.chat.id, open(__file__,'rb'))
     else:
@@ -280,8 +275,6 @@ def source(m):
 
 @bot.message_handler(commands=['solve'])
 def solve(m):
-    if(not is_recent(m)):
-        return
     rp = m.reply_to_message
     rw = ''
     ts = 'Trigger not Found.'
@@ -299,8 +292,6 @@ def solve(m):
 
 @bot.message_handler(commands=['about'])
 def about(m):
-    if(not is_recent(m)):
-        return
     bot.reply_to(m, about_message, parse_mode="Markdown")
 
 
@@ -392,6 +383,14 @@ def global_search(m):
                 result_text = 'Trigger found in these groups:\n%s' % '\n-----\n'.join(results)
             bot.reply_to(m, result_text)
 
+@bot.message_handler(commands=['stats'])
+def bot_stats(m):
+    if(m.from_user.id == owner):
+        total_triggers = 0
+        for x in triggers.keys():
+            total_triggers += len(triggers[x].keys())
+        stats_text = 'Chats : {}\nTriggers : {}'.format(len(triggers.keys()), total_triggers)
+        bot.reply_to(m, stats_text)
 ##TRIGGER PROCESSING SECTION.
 #Catch every message, for triggers.
 @bot.message_handler(func=lambda m: True)
