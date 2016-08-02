@@ -4,7 +4,6 @@ from time import time, asctime, sleep
 from os.path import exists
 from telebot.apihelper import ApiException
 __version__ = 0.8
-__comment__ = 'Added Default Triggers and invited message'
 #comment to use default timeout. (3.5)
 #telebot.apihelper.CONNECT_TIMEOUT = 9999
 #Git Repo:
@@ -24,7 +23,7 @@ separator = '/'
 #Check if a message is too old.
 def is_recent(m):
     return (time() - m.date) < 60
-    
+
 ##END OF GLOBAL VARIABLES SECTION.
 
 ##TRIGGERS SECTION
@@ -42,7 +41,7 @@ def save_triggers():
     with open('triggers.json', 'w') as f:
         json.dump(triggers, f, indent=2)
     print('Triggers file saved.')
-    
+
 #Function to get triggers list for a group.
 def get_triggers(group_id):
     if(str(group_id) in triggers.keys()):
@@ -67,9 +66,9 @@ else:
     except NameError:
         token = input(msg)
     with open('token.txt', 'w') as f:
-        f.write(token)  
+        f.write(token)
     print('Token File saved.')
-    
+
 #Create Bot.
 bot = telebot.TeleBot(token)
 #Bot user ID.
@@ -87,7 +86,7 @@ def listener(messages):
         else:
             message_text = m.content_type
         print('{}[{}]:{}'.format(name, cid, message_text))
-        
+
 #Python3 version.
 logging_to_console = lambda m: print('\n'.join(['%s[%s]:%s' %(x.from_user.first_name, x.chat.id, x.text if x.text else x.content_type) for x in m]))
 
@@ -98,17 +97,11 @@ bot.set_update_listener(listener)
 
 ##GLOBAL MESSAGES SECTION.
 about_message = '''
-<<<<<<< HEAD
-TriggerBot *%s*
-`%s`
-=======
-TriggerBot *0.7*
->>>>>>> ebb998b0164d6c7081ad4dd4bc5c0ad69e53311f
-Created by @Sanguchi in ~60 minutes :P
+TriggerBot %s
 [Source Code on Github](https://github.com/sanguchi/TriggerBot/)
 [Give me 5 Stars](https://telegram.me/storebot?start=TriggerResponseBot)
-''' % (__version__, __comment__)
-  
+''' % __version__
+
 help_message = '''
 You need help!
 *Commands:*
@@ -151,7 +144,7 @@ _Reply to any bot response with the command to get the trigger._
 /about
 _About this bot._
 '''
- 
+
 added_message = '''
 New Trigger Created:
 Trigger [{}]
@@ -180,7 +173,7 @@ Reply to this message with '/solve' to know what word triggers this message.
 Reply to this message with '/del' to delete this tutorial message.
 Reply to this message with '/add something' to set the word something as a trigger for this message.
 Write /all to see all defined triggers.
-Write /size to see how many triggers are defined. 
+Write /size to see how many triggers are defined.
 Send a message with your chat rules, and then reply to that message with:
 /add #rules
 To save them in a trigger.
@@ -207,7 +200,7 @@ def add(m):
         else:
             bot.reply_to(m, 'Only text triggers are supported.')
             return
-    else:    
+    else:
         if(len(m.text.split()) < 2):
             bot.reply_to(m, 'Bad Arguments')
             return
@@ -284,8 +277,6 @@ def all(m):
                 bot.reply_to(m,'Triggers:\n' + '\n'.join(trg))
         else:
             bot.reply_to(m, 'This group doesn\'t have triggers.')
-            
-
 
 @bot.message_handler(commands=['help'])
 def help(m):
@@ -340,7 +331,7 @@ def bcast(m):
             count += 1
         except:
             continue
-    bot.send_message(m.chat.id, 
+    bot.send_message(m.chat.id,
     'Broadcast sent to {} groups of {}'.format(
     count, len(triggers.keys())))
 
@@ -401,7 +392,6 @@ def global_search(m):
             trigger_word = m.text.split(' ', 1)[1]
             results = []
             for g in triggers.keys():
-                #print('g > %s = %s' % (g.__class__.__name__, g))
                 if(trigger_word in triggers[g].keys()):
                     txt = triggers[g][trigger_word]
                     results.append('[%s]:\n%s' % (g, txt if len(txt) < 30 else txt[:27] + '...'))
@@ -512,7 +502,7 @@ def safepolling(bot):
 print('Bot started.')
 print('Bot username:[%s]' % bot.get_me().username)
 #Tell owner the bot has started.
-bot.send_message(owner, 'Bot Started')  
+bot.send_message(owner, 'Bot Started')
 print('Safepolling Start.')
 safepolling(bot)
 #Nothing beyond this line will be executed.
