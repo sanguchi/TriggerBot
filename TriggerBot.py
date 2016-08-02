@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-#TRIGGERBOT 0.7
 import telebot, json
 from time import time, asctime, sleep
 from os.path import exists
 from telebot.apihelper import ApiException
+__version__ = 0.8
+__comment__ = 'Added Default Triggers and invited message'
 #comment to use default timeout. (3.5)
 #telebot.apihelper.CONNECT_TIMEOUT = 9999
 #Git Repo:
@@ -97,11 +98,12 @@ bot.set_update_listener(listener)
 
 ##GLOBAL MESSAGES SECTION.
 about_message = '''
-TriggerBot *0.6.2*
+TriggerBot *%s*
+`%s`
 Created by @Sanguchi in ~60 minutes :P
 [Source Code on Github](https://github.com/sanguchi/TriggerBot/)
 [Give me 5 Stars](https://telegram.me/storebot?start=TriggerResponseBot)
-'''
+''' % (__version__, __comment__)
   
 help_message = '''
 You need help!
@@ -158,10 +160,32 @@ Trigger [{}]
 Response [{}]
 '''
 
+invited_message = '''
+Okay, Hi everyone, i'm *Trigger*, a bot made to store sentences as triggers.
+And these words will trigger a defined response.
+By default, hi have 4 triggers defined.
+Type `tutorial` to see.
+_Be nice._
+'''
+
 gdeleted_message = '''
 Trigger [{}] deleted from {} Groups.
 '''
-
+tutorial = '''
+Reply to this message with '/solve' to know what word triggers this message.
+Reply to this message with '/del' to delete this tutorial message.
+Reply to this message with '/add something' to set the word something as a trigger for this message.
+Write /all to see all defined triggers.
+Write /size to see how many triggers are defined. 
+Send a message with your chat rules, and then reply to that message with:
+/add #rules
+To save them in a trigger.
+'''
+default_triggers = {
+'trigger' : 'Are you triggered?',
+'oh shit' : 'TRIGGERED!',
+'tutorial': tutorial,
+'fuck' : 'Watch your language!'}
 
 ##END OF GLOBAL MESSAGES SECTION.
 
@@ -303,7 +327,7 @@ def bcast(m):
     if(m.from_user.id != owner):
         return
     if(len(m.text.split()) == 1):
-        bot.send_message(m.chat.id, 'No text provided.!')
+        bot.send_message(m.chat.id, 'No text provided!')
         return
     count = 0
     for g in triggers.keys():
@@ -391,7 +415,52 @@ def bot_stats(m):
             total_triggers += len(triggers[x].keys())
         stats_text = 'Chats : {}\nTriggers : {}'.format(len(triggers.keys()), total_triggers)
         bot.reply_to(m, stats_text)
+
+@bot.message_handler(commands=['merge'])
+def merge_triggers(m):
+    if(m.from_user.id == owner):
+        success_text = 'Triggers merged with [%s], total triggers: [%s]'
+        no_exists = 'Group %s does not exist in the database.'
+        if(len(m.text.split()) == 2):
+            merge_from = int(m.text.split()[1])
+            if(get_triggers(merge_from)):
+                get_triggers(m.chat.id).update(get_triggers(merge_from))
+                save_triggers()
+                bot.reply_to(m, success_text % (merge_from, len(get_triggers(m.chat.id))))
+            else:
+                bot.reply_to(m, no_exists % merge_from)
+        else:
+            bot.reply_to(m, 'Missing argument, Group id.')
+
+@bot.message_handler(commands=['check_groups'])
+def check_groups(m):
+    if(m.from_user.id == owner):
+        group_count = 0
+        for g in triggers.keys():
+            try:
+                bot.send_chat_action(g, 'typing')
+                group_count += 1
+            except:
+                pass
+        bot.send_message(m.chat.id, 'Working in %s of %s chats' % (group_count, len(triggers)))
+
 ##TRIGGER PROCESSING SECTION.
+
+#Triggered when you add the bot to a new group.
+@bot.message_handler(content_types=['new_chat_member'])
+def invited(m):
+    if(m.new_chat_member.id == bot_id):
+        bot.send_message(m.chat.id, invited_message, parse_mode="Markdown")
+        if(not get_triggers(m.chat.id)):
+            triggers[str(m.chat.id)] = default_triggers
+            save_triggers()
+        bot.send_message(owner, 'Bot added to %s[%s]' % (m.chat.title, m.chat.id))
+
+@bot.message_handler(content_types=['left_chat_member'])
+def expulsed(m):
+    if(m.left_chat_member.id == bot_id):
+        bot.send_message(owner, 'Bot left chat %s[%s]' % (m.chat.title, m.chat.id))
+
 #Catch every message, for triggers.
 @bot.message_handler(func=lambda m: True)
 def response(m):
