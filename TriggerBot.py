@@ -3,31 +3,32 @@ import telebot, json
 from time import time, asctime, sleep
 from os.path import exists
 from telebot.apihelper import ApiException
-__version__ = 0.8
-#comment to use default timeout. (3.5)
-#telebot.apihelper.CONNECT_TIMEOUT = 9999
-#Git Repo:
-#https://github.com/sanguchi/TriggerBot
+__version__ = 0.9
+# comment to use default timeout. (3.5)
+# telebot.apihelper.CONNECT_TIMEOUT = 9999
+# Git Repo:
+# https://github.com/sanguchi/TriggerBot
 
-##GLOBAL VARIABLES.
+# GLOBAL VARIABLES.
 
-#Bot owner, replace with your user_id.
+# Bot owner, replace with your user_id.
 owner = 59802458
 
-#Variable to hold all Triggers.
+# Variable to hold all Triggers.
 triggers = {}
 
-#Separator character.
+# Separator character.
 separator = '/'
 
-#Check if a message is too old.
+
+# Check if a message is too old.
 def is_recent(m):
     return (time() - m.date) < 60
 
-##END OF GLOBAL VARIABLES SECTION.
+# END OF GLOBAL VARIABLES SECTION.
 
-##TRIGGERS SECTION
-#Check if Triggers file exists and load, if not, is created.
+# TRIGGERS SECTION
+# Check if Triggers file exists and load, if not, is created.
 if exists('triggers.json'):
     with open('triggers.json') as f:
         triggers = json.load(f)
@@ -36,25 +37,27 @@ else:
     with open('triggers.json', 'w') as f:
         json.dump({}, f)
 
-#Function to save triggers list to a file.
+
+# Function to save triggers list to a file.
 def save_triggers():
     with open('triggers.json', 'w') as f:
         json.dump(triggers, f, indent=2)
     print('Triggers file saved.')
 
-#Function to get triggers list for a group.
+
+# Function to get triggers list for a group.
 def get_triggers(group_id):
     if(str(group_id) in triggers.keys()):
         return triggers[str(group_id)]
     else:
         return False
 
-##END OF TRIGGERS SECTION
+# END OF TRIGGERS SECTION
 
-##BOT INIT SECTION.
+# BOT INIT SECTION.
 token = ''
 
-#Check if Token file exists, if not, create.
+# Check if Token file exists, if not, create.
 if exists('token.txt'):
     with open('token.txt') as f:
         token = f.readline().strip()
@@ -69,15 +72,16 @@ else:
         f.write(token)
     print('Token File saved.')
 
-#Create Bot.
+# Create Bot.
 bot = telebot.TeleBot(token)
-#Bot user ID.
+# Bot user ID.
 bot_id = int(token.split(':')[0])
 print('Bot ID [%s]' % bot_id)
-#Define a custom Listener to print messages to console.
 
-#Python2 version
-def listener(messages):
+
+# Define a custom Listener to print messages to console.
+# Python2 version
+def listener2(messages):
     for m in messages:
         cid = m.chat.id
         name = m.from_user.first_name.encode('ascii', 'ignore').decode('ascii')
@@ -87,15 +91,18 @@ def listener(messages):
             message_text = m.content_type
         print('{}[{}]:{}'.format(name, cid, message_text))
 
-#Python3 version.
-logging_to_console = lambda m: print('\n'.join(['%s[%s]:%s' %(x.from_user.first_name, x.chat.id, x.text if x.text else x.content_type) for x in m]))
 
-#Change to listener if this complains about encoding.
-bot.set_update_listener(listener)
+# Python3 version.
+def listener3(messages):
+    for m in messages:
+        print('%s[%s]:%s' % (m.from_user.first_name, m.chat.id, m.text if m.text else m.content_type))
 
-##END OF BOT INITIALIZATION SECTION.
+# Change to listener2 if this complains about encoding.
+bot.set_update_listener(listener2)
 
-##GLOBAL MESSAGES SECTION.
+# END OF BOT INITIALIZATION SECTION.
+
+# GLOBAL MESSAGES SECTION.
 about_message = '''
 TriggerBot *%s*
 [Source Code on Github](https://github.com/sanguchi/TriggerBot/)
@@ -179,14 +186,15 @@ Send a message with your chat rules, and then reply to that message with:
 To save them in a trigger.
 '''
 default_triggers = {
-'trigger' : 'Are you triggered?',
-'oh shit' : 'TRIGGERED!',
-'tutorial': tutorial,
-'fuck' : 'Watch your language!'}
+    'trigger': 'Are you triggered?',
+    'oh shit': 'TRIGGERED!',
+    'tutorial': tutorial,
+    'fuck': 'Watch your language!'}
 
-##END OF GLOBAL MESSAGES SECTION.
+# END OF GLOBAL MESSAGES SECTION.
 
-##COMMAND IMPLEMENTATION SECTION.
+# COMMAND IMPLEMENTATION SECTION.
+
 
 @bot.message_handler(commands=['add'])
 def add(m):
@@ -232,9 +240,10 @@ def add(m):
         if(m.chat.id != owner):
             return
 
+
 @bot.message_handler(commands=['del'])
 def delete(m):
-    #check if this is a bot message replied with /del.
+    # check if this is a bot message replied with /del.
     if(len(m.text.split()) == 1 and m.reply_to_message and m.reply_to_message.text):
         trg = get_triggers(m.chat.id)
         if(trg):
@@ -255,6 +264,7 @@ def delete(m):
             save_triggers()
         else:
             bot.reply_to(m, 'Trigger [{}] not found.'.format(del_text))
+
 
 @bot.message_handler(commands=['size'])
 def size(m):
@@ -278,6 +288,7 @@ def all(m):
         else:
             bot.reply_to(m, 'This group doesn\'t have triggers.')
 
+
 @bot.message_handler(commands=['help'])
 def help(m):
     if(m.chat.id == m.from_user.id):
@@ -291,6 +302,7 @@ def source(m):
         bot.send_document(m.chat.id, open(__file__,'rb'))
     else:
         bot.reply_to(m, "No source file found :x")
+
 
 @bot.message_handler(commands=['solve'])
 def solve(m):
@@ -309,14 +321,15 @@ def solve(m):
                     ts = 'Trigger = ' + x
         bot.reply_to(m, ts)
 
+
 @bot.message_handler(commands=['about'])
 def about(m):
     bot.reply_to(m, about_message, parse_mode="Markdown")
 
 
-##END OF COMMAND IMPLEMENTATION SECTION.
+# END OF COMMAND IMPLEMENTATION SECTION.
 
-##ADMIN COMMANDS
+# ADMIN COMMANDS
 @bot.message_handler(commands=['broadcast'])
 def bcast(m):
     if(m.from_user.id != owner):
@@ -331,14 +344,14 @@ def bcast(m):
             count += 1
         except:
             continue
-    bot.send_message(m.chat.id,
-    'Broadcast sent to {} groups of {}'.format(
-    count, len(triggers.keys())))
+    bot.send_message(m.chat.id, 'Broadcast sent to {} groups of {}'.format(count, len(triggers.keys())))
+
 
 @bot.message_handler(commands=['triggers'])
 def send_triggers(m):
     if(m.from_user.id == owner):
         bot.send_document(owner, open('triggers.json'))
+
 
 @bot.message_handler(commands=['gadd'])
 def add_global_trigger(m):
@@ -368,6 +381,7 @@ def add_global_trigger(m):
         bot.reply_to(m, gadded_message.format(trigger_word, trigger_response))
         save_triggers()
 
+
 @bot.message_handler(commands=['gdel'])
 def global_delete(m):
     if(m.from_user.id == owner):
@@ -382,6 +396,7 @@ def global_delete(m):
                     count += 1
             bot.reply_to(m, gdeleted_message.format(trigger_word, count))
             save_triggers()
+
 
 @bot.message_handler(commands=['gsearch'])
 def global_search(m):
@@ -401,6 +416,7 @@ def global_search(m):
                 result_text = 'Trigger found in these groups:\n%s' % '\n-----\n'.join(results)
             bot.reply_to(m, result_text)
 
+
 @bot.message_handler(commands=['stats'])
 def bot_stats(m):
     if(m.from_user.id == owner):
@@ -409,6 +425,7 @@ def bot_stats(m):
             total_triggers += len(triggers[x].keys())
         stats_text = 'Chats : {}\nTriggers : {}'.format(len(triggers.keys()), total_triggers)
         bot.reply_to(m, stats_text)
+
 
 @bot.message_handler(commands=['merge'])
 def merge_triggers(m):
@@ -426,6 +443,7 @@ def merge_triggers(m):
         else:
             bot.reply_to(m, 'Missing argument, Group id.')
 
+
 @bot.message_handler(commands=['check_groups'])
 def check_groups(m):
     if(m.from_user.id == owner):
@@ -438,9 +456,10 @@ def check_groups(m):
                 pass
         bot.send_message(m.chat.id, 'Working in %s of %s chats' % (group_count, len(triggers)))
 
-##TRIGGER PROCESSING SECTION.
+# TRIGGER PROCESSING SECTION.
 
-#Triggered when you add the bot to a new group.
+
+# Triggered when you add the bot to a new group.
 @bot.message_handler(content_types=['new_chat_member'])
 def invited(m):
     if(m.new_chat_member.id == bot_id):
@@ -450,12 +469,14 @@ def invited(m):
             save_triggers()
         bot.send_message(owner, 'Bot added to %s[%s]' % (m.chat.title, m.chat.id))
 
+
 @bot.message_handler(content_types=['left_chat_member'])
 def expulsed(m):
     if(m.left_chat_member.id == bot_id):
         bot.send_message(owner, 'Bot left chat %s[%s]' % (m.chat.title, m.chat.id))
 
-#Catch every message, for triggers.
+
+# Catch every message, for triggers.
 @bot.message_handler(func=lambda m: True)
 def response(m):
     if(not is_recent(m)):
@@ -468,8 +489,7 @@ def response(m):
                     bot.reply_to(m, trg[t])
 
 
-#This makes the bot unstoppable :^)
-#Notice this is single-threaded.
+# This makes the bot unstoppable :^)
 def safepolling(bot):
     if(bot.skip_pending):
         lid = bot.get_updates()[-1].update_id
@@ -478,7 +498,7 @@ def safepolling(bot):
     while(1):
         try:
             updates = bot.get_updates(lid + 1, 50)
-            #print('len updates = %s' % len(updates))
+            # print('len updates = %s' % len(updates))
             if(len(updates) > 0):
                 lid = updates[-1].update_id
                 bot.process_new_updates(updates)
@@ -490,19 +510,19 @@ def safepolling(bot):
             while(1):
                 error_text = 'Exception at %s:\n%s' % (asctime(), str(e) if len(str(e)) < 3600 else str(e)[:3600])
                 try:
-                    #print('Trying to send message to owner.')
+                    # print('Trying to send message to owner.')
                     offline = int(time()) - now
                     bot.send_message(owner, error_text + '\nBot went offline for %s seconds' % offline)
-                    #print('Message sent, returning to polling.')
+                    # print('Message sent, returning to polling.')
                     break
                 except:
                     sleep(0.25)
 
-#Bot starts here.
+# Bot starts here.
 print('Bot started.')
 print('Bot username:[%s]' % bot.get_me().username)
-#Tell owner the bot has started.
+# Tell owner the bot has started.
 bot.send_message(owner, 'Bot Started')
 print('Safepolling Start.')
 safepolling(bot)
-#Nothing beyond this line will be executed.
+# Nothing beyond this line will be executed.
