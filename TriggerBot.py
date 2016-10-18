@@ -296,6 +296,7 @@ def help(m):
     else:
         bot.send_message(m.chat.id, help_message, True, parse_mode="Markdown")
 
+
 @bot.message_handler(commands=['source'])
 def source(m):
     if exists(__file__):
@@ -425,6 +426,20 @@ def bot_stats(m):
             total_triggers += len(triggers[x].keys())
         stats_text = 'Chats : {}\nTriggers : {}'.format(len(triggers.keys()), total_triggers)
         bot.reply_to(m, stats_text)
+
+
+@bot.message_handler(commands=['clean'])
+def clean_triggers(m):
+    if(m.from_user.id == owner):
+        group_count = len(triggers)
+
+        for g in triggers.keys():
+            try:
+                bot.send_chat_action(g, 'typing')
+            except:
+                triggers.pop(g)
+        msg = 'Original group count: {}\nGroups deleted: {}\nFinal size: {}'
+        bot.send_message(m.chat.id, msg.format(group_count, group_count - len(triggers), len(triggers)))
 
 
 @bot.message_handler(commands=['merge'])
