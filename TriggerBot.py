@@ -289,7 +289,7 @@ def all(m):
             bot.reply_to(m, 'This group doesn\'t have triggers.')
 
 
-@bot.message_handler(commands=['help'])
+@bot.message_handler(commands=['help', 'start'])
 def help(m):
     if(m.chat.id == m.from_user.id):
         bot.send_message(m.chat.id, full_help, True, parse_mode="Markdown")
@@ -433,13 +433,33 @@ def clean_triggers(m):
     if(m.from_user.id == owner):
         group_count = len(triggers)
 
-        for g in triggers.keys():
+        total_triggers = 0
+        for x in triggers.keys():
+            total_triggers += len(triggers[x].keys())
+
+        triggers_count = 0
+        for g in triggers.copy().keys():
             try:
                 bot.send_chat_action(g, 'typing')
             except:
-                triggers.pop(g)
-        msg = 'Original group count: {}\nGroups deleted: {}\nFinal size: {}'
-        bot.send_message(m.chat.id, msg.format(group_count, group_count - len(triggers), len(triggers)))
+                triggers_count += len(triggers.pop(g))
+
+        msg_text = '''
+_Original group count_ : *{}*
+_Original trigger count_ : *{}*
+_Groups deleted_ : *{}*
+_Triggers deleted_ : *{}*
+_Final group count_ : *{}*
+_Final trigger count_ : *{}*
+        '''.format(
+            group_count,
+            total_triggers,
+            group_count - len(triggers),
+            triggers_count,
+            len(triggers),
+            total_triggers - triggers_count)
+        save_triggers()
+        bot.send_message(m.chat.id, msg_text, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=['merge'])
@@ -533,11 +553,23 @@ def safepolling(bot):
                 except:
                     sleep(0.25)
 
-# Bot starts here.
-print('Bot started.')
-print('Bot username:[%s]' % bot.get_me().username)
-# Tell owner the bot has started.
-bot.send_message(owner, 'Bot Started')
-print('Safepolling Start.')
-safepolling(bot)
+
+if(__name__ == '__main__'):
+    # Bot starts here.
+    print('Bot started.')
+    try:
+        print('Bot username:[%s]' % bot.get_me().username)
+    except ApiException:
+        print('The given token [%s] is invalid, please fix it')
+        exit(1)
+    # Tell owner the bot has started.
+    try:
+        bot.send_message(owner, 'Bot Started')
+    except ApiException:
+        print('''Make sure you have started your bot https://telegram.me/%s.
+    And configured the owner variable.''' % bot.get_me().username)
+        exit(1)
+    print('Safepolling Start.')
+    safepolling(bot)
+
 # Nothing beyond this line will be executed.
