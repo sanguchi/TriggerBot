@@ -11,3 +11,15 @@ Just run `TriggerBot.py` or `TriggerBot_old.py`
 
 #####TriggerBot_old.py:
 -This version saves triggers globally.
+
+#####TriggerBotTornado.py:
+-Runs on top of a tornado webserver.
+_Requires tornado._
+> `sudo pip install tornado`
+
+**SSL Certificate:**  
+It uses [Ngrok](https://ngrok.com/) to get a custom url.
+Simply launch ngrok first:
+> `ngrok http -bind-tls=true 8888`
+
+then start the script.
