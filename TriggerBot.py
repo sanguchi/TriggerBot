@@ -300,7 +300,7 @@ def help(m):
 @bot.message_handler(commands=['source'])
 def source(m):
     if exists(__file__):
-        bot.send_document(m.chat.id, open(__file__,'rb'))
+        bot.send_document(m.chat.id, open(__file__, 'rb'))
     else:
         bot.reply_to(m, "No source file found :x")
 
