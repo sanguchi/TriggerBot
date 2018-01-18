@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import telebot, json
+import telebot
+import json
 from time import time, asctime, sleep
 from os.path import exists
 from telebot.apihelper import ApiException
-__version__ = 0.9
+__version__ = 0.10
 # comment to use default timeout. (3.5)
 # telebot.apihelper.CONNECT_TIMEOUT = 9999
 # Git Repo:
@@ -26,6 +27,7 @@ def is_recent(m):
     return (time() - m.date) < 60
 
 # END OF GLOBAL VARIABLES SECTION.
+
 
 # TRIGGERS SECTION
 # Check if Triggers file exists and load, if not, is created.
@@ -54,6 +56,7 @@ def get_triggers(group_id):
 
 # END OF TRIGGERS SECTION
 
+
 # BOT INIT SECTION.
 token = ''
 
@@ -65,8 +68,10 @@ if exists('token.txt'):
 else:
     msg = 'No token file detected, please paste or type here your token:\n> '
     try:
+        # Python 2.7
         token = raw_input(msg)
     except NameError:
+        # Python 3.x
         token = input(msg)
     with open('token.txt', 'w') as f:
         f.write(token)
@@ -96,6 +101,7 @@ def listener2(messages):
 def listener3(messages):
     for m in messages:
         print('%s[%s]:%s' % (m.from_user.first_name, m.chat.id, m.text if m.text else m.content_type))
+
 
 # Change to listener2 if this complains about encoding.
 bot.set_update_listener(listener2)
@@ -152,13 +158,13 @@ _Reply to any bot response with the command to get the trigger._
 _About this bot._
 '''
 
-added_message = '''
+trigger_created_message = '''
 New Trigger Created:
 Trigger [{}]
 Response [{}]
 '''
 
-gadded_message = '''
+global_trigger_created_message = '''
 New Global Trigger Created:
 Trigger [{}]
 Response [{}]
@@ -172,7 +178,7 @@ Type `tutorial` to see.
 _Be nice._
 '''
 
-gdeleted_message = '''
+global_trigger_deleted_message = '''
 Trigger [{}] deleted from {} Groups.
 '''
 tutorial = '''
@@ -196,10 +202,13 @@ default_triggers = {
 # COMMAND IMPLEMENTATION SECTION.
 
 
+# Adds a new trigger
 @bot.message_handler(commands=['add'])
 def add(m):
+    # Create trigger on message reply
     if(m.reply_to_message):
         if(m.reply_to_message.text):
+            # Reply message does not contain the trigger word/phrase.
             if(len(m.reply_to_message.text.split()) < 2):
                 bot.reply_to(m, 'Bad Arguments')
                 return
@@ -208,7 +217,9 @@ def add(m):
         else:
             bot.reply_to(m, 'Only text triggers are supported.')
             return
+    # Create trigger
     else:
+        # Validations.
         if(len(m.text.split()) < 2):
             bot.reply_to(m, 'Bad Arguments')
             return
@@ -228,19 +239,21 @@ def add(m):
     if(len(trigger_response) > 3000):
         bot.reply_to(m, 'Response too long. [chars > 3000]')
         return
+    # Save trigger for the group
     if(m.chat.type in ['group', 'supergroup']):
         if(get_triggers(m.chat.id)):
             get_triggers(m.chat.id)[trigger_word] = trigger_response
         else:
-            triggers[str(m.chat.id)] = {trigger_word : trigger_response}
-        msg = u'' + added_message.format(trigger_word, trigger_response)
+            triggers[str(m.chat.id)] = {trigger_word: trigger_response}
+        msg = u'' + trigger_created_message.format(trigger_word, trigger_response)
         bot.reply_to(m, msg)
         save_triggers()
+    # Ignore private messages.
     else:
-        if(m.chat.id != owner):
-            return
+        return
 
 
+# Delete a trigger
 @bot.message_handler(commands=['del'])
 def delete(m):
     # check if this is a bot message replied with /del.
@@ -276,21 +289,22 @@ def size(m):
         else:
             bot.reply_to(m, 'Size of Triggers List = 0')
 
+
 @bot.message_handler(commands=['all'])
-def all(m):
+def all_triggers(m):
     if(m.chat.type in ['group', 'supergroup']):
         trg = get_triggers(m.chat.id)
         if(trg):
             if(len(trg.keys()) == 0):
                 bot.reply_to(m, 'This group doesn\'t have triggers.')
             else:
-                bot.reply_to(m,'Triggers:\n' + '\n'.join(trg))
+                bot.reply_to(m, 'Triggers:\n' + '\n'.join(trg))
         else:
             bot.reply_to(m, 'This group doesn\'t have triggers.')
 
 
 @bot.message_handler(commands=['help', 'start'])
-def help(m):
+def bot_help(m):
     if(m.chat.id == m.from_user.id):
         bot.send_message(m.chat.id, full_help, True, parse_mode="Markdown")
     else:
@@ -343,7 +357,7 @@ def bcast(m):
         try:
             bot.send_message(int(g), m.text.split(' ', 1)[1])
             count += 1
-        except:
+        except ApiException:
             continue
     bot.send_message(m.chat.id, 'Broadcast sent to {} groups of {}'.format(count, len(triggers.keys())))
 
@@ -379,7 +393,7 @@ def add_global_trigger(m):
                 return
         for g in triggers.keys():
             triggers[g][trigger_word] = trigger_response
-        bot.reply_to(m, gadded_message.format(trigger_word, trigger_response))
+        bot.reply_to(m, global_trigger_created_message.format(trigger_word, trigger_response))
         save_triggers()
 
 
@@ -395,7 +409,7 @@ def global_delete(m):
                 if(trigger_word in triggers[g]):
                     triggers[g].pop(trigger_word)
                     count += 1
-            bot.reply_to(m, gdeleted_message.format(trigger_word, count))
+            bot.reply_to(m, global_trigger_deleted_message.format(trigger_word, count))
             save_triggers()
 
 

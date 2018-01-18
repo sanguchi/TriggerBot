@@ -431,15 +431,15 @@ def admin_send_database(msg):
 @bot.message_handler(content_types=['text'])
 def catch_messages(msg):
     if(triggers_dict):
-        print("Using dict")
+        # print("Using dict")
         trigger_list = triggers_dict[str(msg.chat.id)]
-        print("Trigger list: ", trigger_list)
+        # print("Trigger list: ", trigger_list)
         for trigger_text in trigger_list.keys():
-            print("Checking against: ", trigger_text)
+            # print("Checking against: ", trigger_text)
             if(trigger_text in msg.text.lower()):
                 bot.reply_to(msg, trigger_list[trigger_text])
     else:
-        print("Using database")
+        # print("Using database")
         try:
             chat = TGUserModel.get(TGUserModel.chat_id == msg.chat.id)
         except DoesNotExist:
@@ -447,7 +447,7 @@ def catch_messages(msg):
             chat.save()
         # print("Trigger count for", chat.chat_id, ": ", chat.chat_triggers.count())
         for trigger_model in chat.chat_triggers:
-            print("Checking against: ", trigger_model.trigger_text)
+            # print("Checking against: ", trigger_model.trigger_text)
             if(trigger_model.trigger_text in msg.text.lower()):
                 bot.reply_to(msg, trigger_model.response_text)
 
