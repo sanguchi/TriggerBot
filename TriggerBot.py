@@ -4,6 +4,7 @@ import json
 from time import time, asctime, sleep
 from os.path import exists
 from telebot.apihelper import ApiException
+
 __version__ = 0.10
 # comment to use default timeout. (3.5)
 # telebot.apihelper.CONNECT_TIMEOUT = 9999
@@ -258,6 +259,7 @@ def add(m):
 def delete(m):
     # check if this is a bot message replied with /del.
     if(len(m.text.split()) == 1 and m.reply_to_message and m.reply_to_message.text):
+        # Get group's triggers.
         trg = get_triggers(m.chat.id)
         if(trg):
             for x in trg.keys():

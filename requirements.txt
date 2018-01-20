@@ -1,9 +1,13 @@
 certifi==2017.11.5
 chardet==3.0.4
 idna==2.6
+markovify==0.7.1
 peewee==2.10.2
+psycopg2==2.7.3.2
 pyTelegramBotAPI==3.5.1
+python-decouple==3.1
 requests==2.18.4
 six==1.11.0
 tornado==4.5.3
+Unidecode==1.0.22
 urllib3==1.22

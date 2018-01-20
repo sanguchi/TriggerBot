@@ -5,3 +5,4 @@
 # IntelliJ project files
 .db
 .idea
+.env

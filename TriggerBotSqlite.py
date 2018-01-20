@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import argparse
 import re
 from time import time, asctime, sleep
@@ -40,12 +41,14 @@ class TextTriggerModel(BaseModel):
     locked_by = IntegerField(default=0)
 
 
+# TODO: implement media triggers.
 class MediaTriggerModel(BaseModel):
     chat = ForeignKeyField(TGUserModel, 'media_triggers')
     trigger_text = CharField(max_length=3000)
     file_id = CharField()
     file_type = CharField()
     locked_by = IntegerField(default=0)
+
 
 db.create_tables([TGUserModel, TextTriggerModel, MediaTriggerModel, ConfigModel], safe=True)
 
@@ -90,6 +93,7 @@ def check_args():
         else:
             print("Owner ID not supplied")
             exit(1)
+
 
 if(ConfigModel.select().count() == 0):
     check_args()
