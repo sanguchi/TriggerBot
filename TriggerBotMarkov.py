@@ -83,7 +83,7 @@ def get_user_from_message(message: telebot.types.Message) -> TGUserModel:
 
 
 # Tries to generate a response, if it already exists, then return none
-def create_message_or_reject(tguser: TGUserModel, state_size=3) -> str:
+def create_message_or_reject(tguser: TGUserModel, state_size=3, save_message=True) -> str:
     # Get all user messages
     user_messages = UserMessageModel.select(UserMessageModel.message_text).where(UserMessageModel.user == tguser)
     if (not user_messages.count()):
@@ -100,6 +100,8 @@ def create_message_or_reject(tguser: TGUserModel, state_size=3) -> str:
         response, created = GeneratedMessageModel.get_or_create(user=tguser, message_text=result)
         if (created):
             logging.info("Response generated: {}".format(result))
+            if(not save_message):
+                response.delete_instance()
             return result
         else:
             logging.info("Rejecting response: {}".format(result))
@@ -192,7 +194,7 @@ def generate_response(message):
     user_obj = get_user_from_message(message)
     if(user_obj.messages.count() > 100):
         for _ in range(100):
-            response = create_message_or_reject(user_obj, 2)
+            response = create_message_or_reject(user_obj, 2, False)
             if(response):
                 bot.reply_to(message, response)
                 return
