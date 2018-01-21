@@ -18,6 +18,8 @@ if(debug_mode):
 telebot.apihelper.CONNECT_TIMEOUT = 9999
 
 # ORM models
+# TODO: use a model instead of this or add an ignored field to user table or add a table about user configs
+ignored_users = []
 
 # Define database connector, comment/uncomment what you want to use.
 db = PostgresqlDatabase(config('PG_DTBS'), user=config('PG_USER'), password=config('PG_PASS'), host=config('PG_HOST'))
@@ -81,7 +83,7 @@ def get_user_from_message(message: telebot.types.Message) -> TGUserModel:
 
 
 # Tries to generate a response, if it already exists, then return none
-def create_message_or_reject(tguser: TGUserModel) -> str:
+def create_message_or_reject(tguser: TGUserModel, state_size=None) -> str:
     # Get all user messages
     user_messages = UserMessageModel.select(UserMessageModel.message_text).where(UserMessageModel.user == tguser)
     if (not user_messages.count()):
@@ -91,7 +93,7 @@ def create_message_or_reject(tguser: TGUserModel) -> str:
     logging.info("Fetched {} messages from {}[{}]".format(total_messages, tguser.first_name, tguser.chat_id))
     # Markov chain generation.
     markov_feed = '\n'.join([user_message.message_text for user_message in user_messages])
-    text_model = markovify.NewlineText(markov_feed, state_size=3)
+    text_model = markovify.NewlineText(markov_feed, state_size=state_size)
     result = text_model.make_short_sentence(255)
     if (result):
         # Only return new fresh responses.
@@ -172,26 +174,53 @@ def send_user_statistics(message: telebot.types.Message):
     user_obj = get_user_from_message(message)
     message_count = user_obj.messages.count()
     generated_messages = user_obj.generated_messages.count()
-    bot.reply_to(
-        message,
-        "Hi, ihave {} messages from you\n".format(message_count)
-        + "and i generated {} responses from your messages :)".format(generated_messages) if generated_messages else
-        "but i never generated a response from your messages :(")
+    message_count_text = "Hi, i have {} messages from you\n".format(message_count)
+    if(generated_messages):
+        message_response_text = "and i generated {} responses from your messages :)".format(generated_messages)
+    else:
+        message_response_text = "but i never generated a response from your messages :("
+    bot.reply_to(message, message_count_text + message_response_text)
+
+
+@bot.message_handler(commands=['about'])
+def about(message):
+    bot.reply_to(message, about_message, parse_mode="Markdown")
+
+
+@bot.message_handler(commands=['trigger'])
+def generate_response(message):
+    user_obj = get_user_from_message(message)
+    if(user_obj.messages.count() > 100):
+        for _ in range(100):
+            response = create_message_or_reject(user_obj, 2)
+            if(response):
+                bot.reply_to(message, response)
+                return
+        bot.reply_to(message, "Not this time, please talk more.")
+    else:
+        bot.reply_to(message, "I need at least 100 messages from you. :(")
+
+
+@bot.message_handler(commands=['ignoreme'])
+def ignore_user(message: telebot.types.Message):
+    if(message.from_user.id in ignored_users):
+        ignored_users.remove(message.from_user.id)
+        bot.reply_to(message, "Ok, i'll start to answer your messages.")
+    else:
+        ignored_users.append(message.from_user.id)
+        bot.reply_to(message, "Ah ok, nvm cya :)")
 
 
 # Try to reply to every text message
 @bot.message_handler(func=lambda m: True)
 def reply_intent(message: telebot.types.Message):
     if(message.content_type == "text" and not message.text.startswith('/') and message.text.count(' ') >= 2):
+        if(message.from_user.id in ignored_users):
+            return
         user_obj = get_user_from_message(message)
         response = create_message_or_reject(user_obj)
         if(response):
             bot.reply_to(message, response)
-
-
-@bot.message_handler(commands=['about'])
-def about(m):
-    bot.reply_to(m, about_message, parse_mode="Markdown")
 
 
 def notify_exceptions(exception_instance: Exception):
