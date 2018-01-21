@@ -83,7 +83,7 @@ def get_user_from_message(message: telebot.types.Message) -> TGUserModel:
 
 
 # Tries to generate a response, if it already exists, then return none
-def create_message_or_reject(tguser: TGUserModel, state_size=None) -> str:
+def create_message_or_reject(tguser: TGUserModel, state_size=3) -> str:
     # Get all user messages
     user_messages = UserMessageModel.select(UserMessageModel.message_text).where(UserMessageModel.user == tguser)
     if (not user_messages.count()):
