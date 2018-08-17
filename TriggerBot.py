@@ -4,7 +4,7 @@ import json
 from time import time, asctime, sleep
 from os.path import exists
 from telebot.apihelper import ApiException
-
+# Editado 21 de junio
 __version__ = 0.10
 # comment to use default timeout. (3.5)
 # telebot.apihelper.CONNECT_TIMEOUT = 9999
