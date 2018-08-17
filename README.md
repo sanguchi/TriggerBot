@@ -26,6 +26,6 @@ _Requires peewee._
 **SSL Certificate:**  
 It uses [Ngrok](https://ngrok.com/) to get a custom url.
 Simply launch ngrok first:
-> `ngrok http -bind-tls=true 8888`
+> `ngrok http 8888`
 
 then start the script.
