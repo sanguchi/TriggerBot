@@ -244,6 +244,7 @@ def reply_intent(message: telebot.types.Message):
                 response = create_message_or_reject(user_obj, 2)
                 if (response):
                     bot.reply_to(message, response)
+                    return
 
 
 def notify_exceptions(exception_instance: Exception):
