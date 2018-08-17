@@ -7,8 +7,11 @@ import logging
 from time import time, asctime, sleep
 from telebot.apihelper import ApiException
 from typing import List
+import random
 
-__version__ = 0.01
+# VERSION 0.2: removed ignored users array and added chance field on user model, and a settings panel.
+# TODO: Inline buttons
+__version__ = 0.2
 
 debug_mode = config('DEBUG', cast=bool)
 if(debug_mode):
@@ -16,10 +19,6 @@ if(debug_mode):
 
 # comment to use default timeout. (3.5)
 telebot.apihelper.CONNECT_TIMEOUT = 9999
-
-# ORM models
-# TODO: use a model instead of this or add an ignored field to user table or add a table about user configs
-ignored_users = []
 
 # Define database connector, comment/uncomment what you want to use.
 db = PostgresqlDatabase(config('PG_DTBS'), user=config('PG_USER'), password=config('PG_PASS'), host=config('PG_HOST'))
@@ -37,24 +36,38 @@ class TGUserModel(BaseModel):
     chat_id = CharField()
     first_name = CharField()
     username = CharField(null=True)
+    # TODO: let users set the complexity of messages.
     state_size = IntegerField(default=3)
+    # How much chances are of getting a response automatically.
+    autoreply_chance = IntegerField(default=15)
+    # this means only generate messages of 255 chars max, enabling this could cause large spam messages.
+    large_messages = BooleanField(default=False)
 
 
 # Model to store all messages
 class UserMessageModel(BaseModel):
     user = ForeignKeyField(TGUserModel, 'messages')
-    message_text = CharField(max_length=3000)
+    message_text = CharField(max_length=4000)
 
 
 class GeneratedMessageModel(BaseModel):
     user = ForeignKeyField(TGUserModel, 'generated_messages')
-    message_text = CharField(max_length=3000)
+    message_text = CharField(max_length=4000)
 
 
 # Create database file if it doesn't exists.
 db.create_tables([TGUserModel, UserMessageModel, GeneratedMessageModel], safe=True)
 # Bot instance initialization.
 bot = telebot.TeleBot(config('BOT_TOKEN'))
+
+# Bot starts here.
+logging.info('Bot started.')
+try:
+    bot_info = bot.get_me()
+except ApiException:
+    logging.critical('The given token [{0}] is invalid, please fix it'.format(config('BOT_TOKEN')))
+    exit(1)
+logging.debug('{bot_info.first_name} @{bot_info.username}[{bot_info.id}]'.format(bot_info=bot_info))
 
 
 # Return a TGUser instance based on telegram message instance.
@@ -82,19 +95,21 @@ def get_user_from_message(message: telebot.types.Message) -> TGUserModel:
     return db_user
 
 
-# Tries to generate a response, if it already exists, then return none
-def create_message_or_reject(tguser: TGUserModel, state_size=None) -> str:
+# Tries to return a short dumb response, if it already exists, return none
+def create_message_or_reject(tguser: TGUserModel, state_size=2, short_sentence=True) -> str:
     # Get all user messages
     user_messages = UserMessageModel.select(UserMessageModel.message_text).where(UserMessageModel.user == tguser)
     if (not user_messages.count()):
-        logging.info("No messages found from {}[{}]".format(tguser.first_name, tguser.chat_id))
+        logging.info("No messages found from {tguser.first_name}[{tguser.chat_id}]".format(tguser=tguser))
         return None
     total_messages = user_messages.count()
     logging.info("Fetched {} messages from {}[{}]".format(total_messages, tguser.first_name, tguser.chat_id))
     # Markov chain generation.
     markov_feed = '\n'.join([user_message.message_text for user_message in user_messages])
     text_model = markovify.NewlineText(markov_feed, state_size=state_size)
-    result = text_model.make_short_sentence(255)
+    logging.debug("Generating {0} sentence.".format("short" if short_sentence else "long"))
+    sentence_length = 255 if short_sentence else 4000
+    result = text_model.make_short_sentence(sentence_length)
     if (result):
         # Only return new fresh responses.
         response, created = GeneratedMessageModel.get_or_create(user=tguser, message_text=result)
@@ -158,28 +173,24 @@ TriggerBot *%s*
 ''' % __version__
 
 bot_help_text = '''
-Hi, just add me to any group and wait until i start to learning from your members.
-I will answer every time i can generate a response.
-You can try /stats
+Hi, i'm *Trigger!*, i can learn from people's messages and chat like them.
+If you want me to generate a message, you can mention me, say my nickname, reply to any of my messages, or use:
+`/trigger`
+(These methods only work if i have at least 100 messages from you)
+You can try /settings to adjust autoreply chance.
+'''
+
+settings_text = '''
+Settings for {user.first_name}[{user.chat_id}]:
+Messages registered: {messages}
+Messages generated: {generated}
+Autoreply chance: {user.autoreply_chance}
 '''
 
 
 @bot.message_handler(commands=['start', 'help'])
 def greet_user(message: telebot.types.Message):
-    bot.reply_to(message, bot_help_text)
-
-
-@bot.message_handler(commands=['stats'])
-def send_user_statistics(message: telebot.types.Message):
-    user_obj = get_user_from_message(message)
-    message_count = user_obj.messages.count()
-    generated_messages = user_obj.generated_messages.count()
-    message_count_text = "Hi, i have {} messages from you\n".format(message_count)
-    if(generated_messages):
-        message_response_text = "and i generated {} responses from your messages :)".format(generated_messages)
-    else:
-        message_response_text = "but i never generated a response from your messages :("
-    bot.reply_to(message, message_count_text + message_response_text)
+    bot.reply_to(message, bot_help_text, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=['about'])
@@ -187,7 +198,24 @@ def about(message):
     bot.reply_to(message, about_message, parse_mode="Markdown")
 
 
-@bot.message_handler(commands=['trigger'])
+@bot.message_handler(commands=['settings'])
+def send_user_statistics(message: telebot.types.Message):
+    user_obj = get_user_from_message(message)
+    message_count = user_obj.messages.count()
+    generated_messages = user_obj.generated_messages.count()
+    bot.reply_to(message, settings_text.format(user=user_obj, messages=message_count, generated=generated_messages))
+
+
+def should_reply(message: telebot.types.Message):
+    if(message.content_type == "text"):
+        if(any([word in message.text for word in ['/trigger', bot_info.first_name, bot_info.username]])):
+            return True
+        if(message.reply_to_message and message.reply_to_message.from_user.id == bot_info.id):
+            return True
+    return False
+
+
+@bot.message_handler(func=should_reply)
 def generate_response(message):
     user_obj = get_user_from_message(message)
     if(user_obj.messages.count() > 100):
@@ -198,29 +226,24 @@ def generate_response(message):
                 return
         bot.reply_to(message, "Not this time, please talk more.")
     else:
-        bot.reply_to(message, "I need at least 100 messages from you. :(")
-
-
-@bot.message_handler(commands=['ignoreme'])
-def ignore_user(message: telebot.types.Message):
-    if(message.from_user.id in ignored_users):
-        ignored_users.remove(message.from_user.id)
-        bot.reply_to(message, "Ok, i'll start to answer your messages.")
-    else:
-        ignored_users.append(message.from_user.id)
-        bot.reply_to(message, "Ah ok, nvm cya :)")
+        if('/trigger' in message.text):
+            bot.reply_to(message, "I need at least 100 messages from you. :(")
 
 
 # Try to reply to every text message
 @bot.message_handler(func=lambda m: True)
 def reply_intent(message: telebot.types.Message):
-    if(message.content_type == "text" and not message.text.startswith('/') and message.text.count(' ') >= 2):
-        if(message.from_user.id in ignored_users):
-            return
+    if(message.content_type == "text" and not message.text.startswith('/') and message.text.count(' ') >= 3):
         user_obj = get_user_from_message(message)
-        response = create_message_or_reject(user_obj)
-        if(response):
-            bot.reply_to(message, response)
+        if(user_obj.autoreply_chance == 0):
+            return
+        # with chance of 90% there is a 90/100 chances of getting a randon number below or equal 90
+        # this means you will get True 90 percent of the time.
+        if(random.randint(0, 100) <= user_obj.autoreply_chance):
+            for _ in range(100):
+                response = create_message_or_reject(user_obj, 2)
+                if (response):
+                    bot.reply_to(message, response)
 
 
 def notify_exceptions(exception_instance: Exception):
@@ -237,7 +260,7 @@ def notify_exceptions(exception_instance: Exception):
             logging.debug('Message sent, returning to polling.')
             break
         except:
-            sleep(0.25)
+            sleep(3)
 
 
 # This makes the bot unstoppable :^)
@@ -262,20 +285,14 @@ def safepolling():
 
 
 if(__name__ == '__main__'):
-    # Bot starts here.
-    logging.info('Bot started.')
-    try:
-        logging.debug('Bot username:[%s]' % bot.get_me().username)
-    except ApiException:
-        logging.critical('The given token [%s] is invalid, please fix it')
-        exit(1)
     # Tell owner the bot has started.
+    bot.remove_webhook()
     if(debug_mode):
         try:
             bot.send_message(config('OWNER_ID'), 'Bot Started')
         except ApiException:
             logging.critical('''Make sure you have started your bot https://telegram.me/%s.
-                And configured the owner variable.''' % bot.get_me().username)
+                And configured the owner variable.''' % bot_info.username)
             exit(1)
     logging.info('Safepolling Start.')
     safepolling()
