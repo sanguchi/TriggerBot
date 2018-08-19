@@ -96,7 +96,7 @@ def get_user_from_message(message: telebot.types.Message) -> TGUserModel:
 
 
 # Tries to return a short dumb response, if it already exists, return none
-def create_message_or_reject(tguser: TGUserModel, state_size=2, short_sentence=True) -> str:
+def create_message_or_reject(tguser: TGUserModel, state_size=2, large_message=False) -> str:
     # Get all user messages
     user_messages = UserMessageModel.select(UserMessageModel.message_text).where(UserMessageModel.user == tguser)
     if (not user_messages.count()):
@@ -107,8 +107,9 @@ def create_message_or_reject(tguser: TGUserModel, state_size=2, short_sentence=T
     # Markov chain generation.
     markov_feed = '\n'.join([user_message.message_text for user_message in user_messages])
     text_model = markovify.NewlineText(markov_feed, state_size=state_size)
-    logging.debug("Generating {0} sentence.".format("short" if short_sentence else "long"))
-    sentence_length = 255 if short_sentence else 4000
+    logging.debug("large_message: {}".format(large_message))
+    logging.debug("Generating {0} sentence.".format("large" if large_message else "short"))
+    sentence_length: int = 4000 if large_message else 255
     result = text_model.make_short_sentence(sentence_length)
     if (result):
         # Only return new fresh responses.
@@ -184,6 +185,7 @@ settings_text = '''
 Settings for {user.first_name}[{user.chat_id}]:
 Messages registered: {messages}
 Messages generated: {generated}
+Large messages: {user.large_messages}
 Autoreply chance: {user.autoreply_chance}
 '''
 
@@ -198,12 +200,40 @@ def about(message):
     bot.reply_to(message, about_message, parse_mode="Markdown")
 
 
-@bot.message_handler(commands=['settings'])
-def send_user_statistics(message: telebot.types.Message):
-    user_obj = get_user_from_message(message)
+def generate_settings_message(user_obj: TGUserModel):
     message_count = user_obj.messages.count()
     generated_messages = user_obj.generated_messages.count()
-    bot.reply_to(message, settings_text.format(user=user_obj, messages=message_count, generated=generated_messages))
+    return settings_text.format(user=user_obj, messages=message_count, generated=generated_messages)
+
+
+def generate_settings_keyboard(user_obj: TGUserModel):
+    keyboard = telebot.types.InlineKeyboardMarkup(4)
+    chances: List[telebot.types.InlineKeyboardButton] = [telebot.types.InlineKeyboardButton(chance, None, chance) for chance in ['0', '15', '50', '90']]
+    keyboard.add(*chances)
+    # keyboard.add(
+    #     telebot.types.InlineKeyboardButton('0', None, '0'),
+    #     telebot.types.InlineKeyboardButton('15', None, '15'),
+    #     telebot.types.InlineKeyboardButton('50', None, '50'),
+    #     telebot.types.InlineKeyboardButton('90', None, '90'),
+    # )
+    keyboard.add(
+        telebot.types.InlineKeyboardButton(
+            text='Disable large messages' if user_obj.large_messages else 'Enable large messages',
+            callback_data="toggle"),
+        telebot.types.InlineKeyboardButton("X", None, "close")
+    )
+    return keyboard
+
+
+@bot.message_handler(commands=['settings'])
+def send_user_statistics(message: telebot.types.Message):
+    user_obj: TGUserModel = get_user_from_message(message)
+    keyboard: telebot.types.InlineKeyboardMarkup = None
+    # If private chat
+    if(message.chat.id == message.from_user.id):
+        logging.debug('Settings in private chat')
+        keyboard: telebot.types.InlineKeyboardMarkup = generate_settings_keyboard(user_obj)
+    bot.reply_to(message, generate_settings_message(user_obj), reply_markup=keyboard)
 
 
 def should_reply(message: telebot.types.Message):
@@ -218,9 +248,11 @@ def should_reply(message: telebot.types.Message):
 @bot.message_handler(func=should_reply)
 def generate_response(message):
     user_obj = get_user_from_message(message)
+    large_message = bool(user_obj.large_messages)
+    logging.debug("user_obj.large_messages: {}".format(large_message))
     if(user_obj.messages.count() > 100):
         for _ in range(100):
-            response = create_message_or_reject(user_obj, 2, user_obj.large_messages)
+            response = create_message_or_reject(user_obj, 2, large_message)
             if(response):
                 bot.reply_to(message, response)
                 return
@@ -245,6 +277,49 @@ def reply_intent(message: telebot.types.Message):
                 if (response):
                     bot.reply_to(message, response)
                     return
+
+
+@bot.callback_query_handler(func=lambda q: q.data in ["0", "15", "50", "90"])
+def set_autoreply_chance(query: telebot.types.CallbackQuery):
+    try:
+        db_user = TGUserModel.get(chat_id=query.from_user.id)
+    except DoesNotExist:
+        db_user = TGUserModel.create(
+            chat_id=query.from_user.id,
+            first_name=query.from_user.first_name.lower(),
+            username=query.from_user.username.lower() if query.from_user.username else None)
+    db_user.autoreply_chance = int(query.data)
+    db_user.save()
+    bot.answer_callback_query(query.id, "Your chance has been set to {}%".format(query.data))
+    bot.edit_message_text(
+        generate_settings_message(db_user),
+        db_user.chat_id,
+        query.message.message_id,
+        reply_markup=generate_settings_keyboard(db_user))
+
+
+@bot.callback_query_handler(func=lambda q: q.data == 'toggle')
+def set_autoreply_chance(query: telebot.types.CallbackQuery):
+    try:
+        db_user = TGUserModel.get(chat_id=query.from_user.id)
+    except DoesNotExist:
+        db_user = TGUserModel.create(
+            chat_id=query.from_user.id,
+            first_name=query.from_user.first_name.lower(),
+            username=query.from_user.username.lower() if query.from_user.username else None)
+    db_user.large_messages = not db_user.large_messages
+    db_user.save()
+    bot.answer_callback_query(query.id, "Large messages {}".format('ENABLED' if db_user.large_messages else 'DISABLED'))
+    bot.edit_message_text(
+        generate_settings_message(db_user),
+        db_user.chat_id,
+        query.message.message_id,
+        reply_markup=generate_settings_keyboard(db_user))
+
+
+@bot.callback_query_handler(func=lambda q: q.data == 'close')
+def close_settings_keyboard(query: telebot.types.CallbackQuery):
+    bot.edit_message_reply_markup(query.from_user.id, query.message.message_id, reply_markup=None)
 
 
 def notify_exceptions(exception_instance: Exception):
