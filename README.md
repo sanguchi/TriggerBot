@@ -12,15 +12,11 @@ Then just run one of the following:
 -This version saves triggers globally.
 
 ##### TriggerBotTornado.py:
--Runs on top of a tornado webserver.  
-_Requires tornado._
-> `sudo pip install tornado`
+-Same as TriggerBot.py, but runs on top of a tornado webserver.  
+
 
 ##### TriggerBotMarkov.py:
--Requires [Markovify](https://github.com/jsvine/markovify), [Peewee](https://pypi.org/project/peewee/) and [Python-decouple](https://pypi.org/project/python-decouple/) libraries.  
-> `sudo pip install markovify peewee python-decouple`
+-This version does not store triggers, it stores messages and tries to generate sentences.
 
 ##### TriggerBotSqlite.py:
--Runs using Sqlite as database engine.  
-_Requires peewee._  
-> `sudo pip install peewee`
+-Same as TriggerBot.py, but uses a sqlite database to store triggers.
