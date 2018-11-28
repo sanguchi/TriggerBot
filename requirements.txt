@@ -6,7 +6,7 @@ peewee==2.10.2
 psycopg2==2.7.3.2
 pyTelegramBotAPI==3.5.1
 python-decouple==3.1
-requests==2.18.4
+requests==2.20.1
 six==1.11.0
 tornado==4.5.3
 Unidecode==1.0.22
