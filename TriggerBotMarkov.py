@@ -21,9 +21,9 @@ if(debug_mode):
 telebot.apihelper.CONNECT_TIMEOUT = 9999
 
 # Define database connector, comment/uncomment what you want to use.
-db = PostgresqlDatabase(config('PG_DTBS'), user=config('PG_USER'), password=config('PG_PASS'), host=config('PG_HOST'))
+# db = PostgresqlDatabase(config('PG_DTBS'), user=config('PG_USER'), password=config('PG_PASS'), host=config('PG_HOST'))
 # db = SqliteDatabase('{}.db'.format(__file__))
-
+db = MySQLDatabase(config('PG_DTBS'), user=config('PG_USER'), password=config('PG_PASS'), host=config('PG_HOST'), charset='utf8mb4') 
 
 # Base class, every model inherits the database connector
 class BaseModel(Model):
