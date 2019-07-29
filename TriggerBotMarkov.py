@@ -80,6 +80,12 @@ def get_user_from_message(message: telebot.types.Message) -> TGUserModel:
             user = message.forward_from
         else:
             user = message.from_user
+    # If is a reply to another message, user is the answered message, even if replying to a forwarded message.
+    elif(message.reply_to_message and message.reply_to_message.from_user.id != bot_info.id):
+        if(message.reply_to_message.forward_date):
+            user = message.reply_to_message.forward_from
+        else:
+            user = message.reply_to_message.from_user
     else:
         user = message.from_user
     # Search user on database or create if it doesn't exists
