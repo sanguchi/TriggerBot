@@ -199,6 +199,12 @@ def greet_user(message: telebot.types.Message):
 def about(message):
     bot.reply_to(message, about_message, parse_mode="Markdown")
 
+@bot.message_handler(commands=['mute'])
+def about(message):
+    user_obj = get_user_from_message(message)
+    user_obj.autoreply_chance = 0
+    user_obj.save()
+    bot.reply_to(message, "I will no longer reply to your messages.")
 
 def generate_settings_message(user_obj: TGUserModel):
     message_count = user_obj.messages.count()
