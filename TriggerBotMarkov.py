@@ -10,6 +10,7 @@ from typing import List
 import random
 
 # VERSION 0.2: removed ignored users array and added chance field on user model, and a settings panel.
+# VERSION 0.3: add mute function to groups to prevent bot talking a lot, it overrides user settings
 # TODO: Inline buttons
 __version__ = 0.2
 
@@ -48,15 +49,20 @@ class TGUserModel(BaseModel):
 class UserMessageModel(BaseModel):
     user = ForeignKeyField(TGUserModel, 'messages')
     message_text = CharField(max_length=4000)
-
+    chat_id = CharField(max_length=64)
 
 class GeneratedMessageModel(BaseModel):
     user = ForeignKeyField(TGUserModel, 'generated_messages')
     message_text = CharField(max_length=4000)
 
 
+class GroupSettingsModel(BaseModel):
+    chat_id = CharField(max_length=64)
+    title = CharField(max_length=1024)
+    muted = BooleanField(default=False)
+
 # Create database file if it doesn't exists.
-db.create_tables([TGUserModel, UserMessageModel, GeneratedMessageModel], safe=True)
+db.create_tables([TGUserModel, UserMessageModel, GeneratedMessageModel, GroupSettingsModel], safe=True)
 # Bot instance initialization.
 bot = telebot.TeleBot(config('BOT_TOKEN'))
 
@@ -139,7 +145,7 @@ def text_model_processor(messages: List[telebot.types.Message]):
         user = get_user_from_message(message)
         # Only process text messages that are not commands and contains at least 3 words.
         if message.content_type == "text" and not message.text.startswith('/') and message.text.count(' ') >= 2:
-            data_source.append({'user': user, 'message_text': message.text.lower()})
+            data_source.append({'user': user, 'message_text': message.text.lower(), 'chat_id': message.chat.id})
             # UserMessageModel.create(user=user, message_text=message.text).save()
     logging.debug("Saving {} text messages to the database".format(len(data_source)))
     if(data_source):
