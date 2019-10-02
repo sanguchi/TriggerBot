@@ -136,6 +136,18 @@ def create_message_or_reject(tguser: TGUserModel, state_size=2, large_message=Fa
         logging.info("No response generated.")
         return None
 
+# Tries to return a short dumb response, if it already exists, return none
+def create_group_message(messages, state_size=3, large_message=False) -> str:
+    # Markov chain generation.
+    markov_feed = '\n'.join([message.message_text for message in messages])
+    text_model = markovify.NewlineText(markov_feed, state_size=state_size)
+    logging.debug("Generating {0} sentence.".format("large" if large_message else "short"))
+    sentence_length: int = 4000 if large_message else 255
+    result = text_model.make_short_sentence(sentence_length)
+    if (result):
+        return result
+    else:
+        return None
 
 # Add every text message to the database
 def text_model_processor(messages: List[telebot.types.Message]):
@@ -211,12 +223,31 @@ def greet_user(message: telebot.types.Message):
 def about(message):
     bot.reply_to(message, about_message, parse_mode="Markdown")
 
+
+# /mute works only on groups and only for group's admins.
 @bot.message_handler(commands=['mute'])
-def about(message):
-    user_obj = get_user_from_message(message)
-    user_obj.autoreply_chance = 0
-    user_obj.save()
-    bot.reply_to(message, "I will no longer reply to your messages.")
+def about(message: telebot.types.Message):
+    if(message.chat.type in ['supergroup', 'group']):
+        if(message.from_user.id in [member.user.id for member in bot.get_chat_administrators(message.chat.id)]):
+            try:
+                chat = GroupSettingsModel.get(chat_id=message.chat.id)
+            except DoesNotExist:
+                chat = GroupSettingsModel.create(chat_id=message.chat.id, title=message.chat.title)
+            chat.muted = True
+            bot.reply_to(message, "Group muted.")
+            chat.save()
+
+
+# Works only in groups.
+@bot.message_handler(commands=['gtrigger'], func=lambda m: m.chat.type in ['supergroup', 'group'])
+def group_trigger(message: telebot.types.Message):
+    # get group messages.
+    messages = UserMessageModel.select().where(UserMessageModel.chat_id == message.chat.id)
+    if(messages.count() < 100):
+        bot.reply_to(message, "I need at least 100 messages from this group.")
+    else:
+        bot.reply_to(message, create_group_message(messages))
+
 
 def generate_settings_message(user_obj: TGUserModel):
     message_count = user_obj.messages.count()
