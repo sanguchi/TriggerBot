@@ -137,7 +137,7 @@ def create_message_or_reject(tguser: TGUserModel, state_size=2, large_message=Fa
         return None
 
 # Tries to return a short dumb response, if it already exists, return none
-def create_group_message(messages, state_size=3, large_message=False) -> str:
+def create_group_message(messages, state_size=3, large_message=True) -> str:
     # Markov chain generation.
     markov_feed = '\n'.join([message.message_text for message in messages])
     text_model = markovify.NewlineText(markov_feed, state_size=state_size)
@@ -193,6 +193,7 @@ bot.set_update_listener(text_model_processor)
 # GLOBAL MESSAGES SECTION.
 about_message = '''
 TriggerBot *%s*
+Owner: @Pekatarina
 [Source Code on Github](https://github.com/sanguchi/TriggerBot/)
 [Give me 5 Stars](https://telegram.me/storebot?start=TriggerResponseBot)
 ''' % __version__
