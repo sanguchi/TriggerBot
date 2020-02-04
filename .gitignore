@@ -6,3 +6,5 @@
 .db
 .idea
 .env
+venv
+/TriggerBotMarkov.py.db
