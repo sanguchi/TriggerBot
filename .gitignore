@@ -6,4 +6,5 @@
 .db
 .idea
 .env
-__pycache__
+venv
+/TriggerBotMarkov.py.db
