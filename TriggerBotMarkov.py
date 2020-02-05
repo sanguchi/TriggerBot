@@ -23,7 +23,7 @@ if(debug_mode):
 telebot.apihelper.CONNECT_TIMEOUT = 9999
 
 
-markov_algorithms = ["all_messages", "last_message", "include_word"]
+markov_algorithms = ["all_messages", "last_message"]
 # Define database connector, comment/uncomment what you want to use.
 # db = PostgresqlDatabase(config('PG_DTBS'), user=config('PG_USER'), password=config('PG_PASS'), host=config('PG_HOST'))
 db = SqliteDatabase('{}.db'.format(__file__))
@@ -50,7 +50,7 @@ class TGUserModel(BaseModel):
     autoreply_fixed = IntegerField(default=200)
     # True for random chance | False for fixed
     random_autoreply = BooleanField(default=True)
-    markov_algorithm = CharField(default="all_messages", choices=markov_algorithms)
+    markov_algorithm = CharField(default="last_message", choices=markov_algorithms)
 
 
 # Model to store all messages
@@ -125,8 +125,8 @@ def get_group_from_message(message: Message) -> GroupSettings:
         group_settings: GroupSettings = GroupSettings.get(GroupSettings.user == group_obj)
     except DoesNotExist:
         group_settings = GroupSettings.create(user=group_obj, chat_id=message.chat.id)
-    admins_id = [admin.user.id for admin in bot.get_chat_administrators(message.chat.id)]
-    group_settings.admins = TGUserModel.select().where(TGUserModel.chat_id.in_(admins_id))
+        admins_id = [admin.user.id for admin in bot.get_chat_administrators(message.chat.id)]
+        group_settings.admins = TGUserModel.select().where(TGUserModel.chat_id.in_(admins_id))
     return group_settings
 
 
@@ -219,7 +219,7 @@ def generate_settings_keyboard(user_obj: TGUserModel):
         ]
     keyboard.add(autoreply_type)
     keyboard.add(*chances)
-    keyboard.add(InlineKeyboardButton("X", None, "close"))
+    keyboard.add(InlineKeyboardButton("Markov Algorithm", None, 'algorithm'), InlineKeyboardButton("X", None, "close"))
     return keyboard
 
 
@@ -250,7 +250,7 @@ def group_keyboard(group: GroupSettings, admin: TGUserModel):
     override_button: InlineKeyboardButton = InlineKeyboardButton('Toggle Override User Settings', None, 'group_override')
     keyboard.add(autoreply_type)
     keyboard.add(*chances)
-    keyboard.add(override_button)
+    keyboard.add(InlineKeyboardButton("Markov Algorithm", None, 'group_algorithm'), override_button)
     keyboard.add(InlineKeyboardButton("See personal settings", None, "personal_{}".format(admin.chat_id)), InlineKeyboardButton("X", None, "close"))
     return keyboard
 
@@ -428,17 +428,21 @@ def reply_intent(message: Message):
             bot.reply_to(message, generated_message)
 
 
-# INLINE BUTTONS
-@bot.callback_query_handler(func=lambda q: q.data in ["0", "10", "20", "50", "90", "200", "2000"])
-def set_autoreply_chance(query: CallbackQuery):
+def get_user_from_callback(query: CallbackQuery) -> TGUserModel:
     try:
         db_user: TGUserModel = TGUserModel.get(chat_id=query.from_user.id)
     except DoesNotExist:
-        db_user: TGUserModel = TGUserModel.create(
+        db_user = TGUserModel.create(
             chat_id=query.from_user.id,
             first_name=query.from_user.first_name.lower(),
             username=query.from_user.username.lower() if query.from_user.username else None,
             language_code=query.from_user.language_code)
+    return db_user
+
+# INLINE BUTTONS
+@bot.callback_query_handler(func=lambda q: q.data in ["0", "10", "20", "50", "90", "200", "2000"])
+def set_autoreply_chance(query: CallbackQuery):
+    db_user: TGUserModel = get_user_from_callback(query)
     if(db_user.random_autoreply):
         db_user.autoreply_chance = int(query.data)
         bot.answer_callback_query(query.id, "Random chances set to {}%".format(query.data))
@@ -461,15 +465,21 @@ def close_settings_keyboard(query: CallbackQuery):
 
 @bot.callback_query_handler(func=lambda q: q.data == 'autoreply')
 def toggle_autoreply_type(query: CallbackQuery):
-    try:
-        db_user: TGUserModel = TGUserModel.get(chat_id=query.from_user.id)
-    except DoesNotExist:
-        db_user: TGUserModel = TGUserModel.create(
-            chat_id=query.from_user.id,
-            first_name=query.from_user.first_name.lower(),
-            username=query.from_user.username.lower() if query.from_user.username else None,
-            language_code=query.from_user.language_code)
+    db_user: TGUserModel = get_user_from_callback(query)
     db_user.random_autoreply = not db_user.random_autoreply
+    db_user.save()
+    bot.edit_message_text(
+        get_statistics(db_user),
+        query.from_user.id,
+        query.message.message_id,
+        reply_markup=generate_settings_keyboard(db_user))
+
+
+@bot.callback_query_handler(func=lambda q: q.data == 'algorithm')
+def toggle_fetch_algorithm(query: CallbackQuery):
+    db_user: TGUserModel = get_user_from_callback(query)
+    logging.debug("user {} alg: {}".format(db_user.chat_id, db_user.markov_algorithm))
+    db_user.markov_algorithm = "last_message" if db_user.markov_algorithm == "all_messages" else "all_messages"
     db_user.save()
     bot.edit_message_text(
         get_statistics(db_user),
@@ -480,7 +490,7 @@ def toggle_autoreply_type(query: CallbackQuery):
 # GROUP INLINE BUTTONS FOR ADMINS
 @bot.callback_query_handler(func=lambda q: q.data.startswith('group_') and q.data.split('_')[1] in ["0", "10", "20", "50", "90", "200", "2000"])
 def set_autoreply_chance(query: CallbackQuery):
-    user_obj: TGUserModel = get_user_from_message(query.message)
+    user_obj: TGUserModel = get_user_from_callback(query)
     group: GroupSettings = get_group_from_message(query.message)
     chances = int(query.data.split('_')[1])
     if (user_obj in group.admins):
@@ -507,6 +517,20 @@ def toggle_group_override(query: CallbackQuery):
     if (user_obj in group.admins):
         group.override_settings = not group.override_settings
         group.save()
+        bot.edit_message_text(
+            get_group_statistics(group),
+            query.message.chat.id,
+            query.message.message_id,
+            reply_markup=group_keyboard(group, user_obj))
+
+
+@bot.callback_query_handler(func=lambda q: q.data == 'group_algorithm')
+def toggle_group_fetch_algorithm(query: CallbackQuery):
+    user_obj: TGUserModel = get_user_from_message(query.message)
+    group: GroupSettings = get_group_from_message(query.message)
+    if (user_obj in group.admins):
+        group.user.markov_algorithm = "last_message" if group.user.markov_algorithm == "all_messages" else "all_messages"
+        group.user.save()
         bot.edit_message_text(
             get_group_statistics(group),
             query.message.chat.id,
