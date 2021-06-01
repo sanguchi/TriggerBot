@@ -10,4 +10,4 @@ requests==2.20.1
 six==1.11.0
 tornado==4.5.3
 Unidecode==1.0.22
-urllib3==1.24.2
+urllib3==1.26.5
