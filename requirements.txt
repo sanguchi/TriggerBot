@@ -1,6 +1,6 @@
 certifi==2022.12.7
 chardet==3.0.4
-idna==2.6
+idna==3.7
 markovify==0.7.1
 peewee==3.13.1
 psycopg2==2.7.3.2
